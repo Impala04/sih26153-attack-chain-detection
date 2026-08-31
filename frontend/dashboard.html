@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Predictive Network Security Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: #0f1117;
+    color: #e6e8ec;
+    padding: 24px;
+  }
+  h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+  .subtitle { color: #8b8f9a; font-size: 13px; margin-bottom: 24px; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+
+  .host-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .host-card {
+    background: #171a23;
+    border: 1px solid #262b38;
+    border-radius: 10px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+  }
+  .host-card:hover { border-color: #3a4256; }
+  .host-card.selected { border-color: #5b8def; background: #1a2030; }
+
+  .host-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .host-label { font-size: 14px; font-weight: 600; }
+  .host-id { font-size: 11px; color: #7a7f8c; }
+
+  .badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .badge.low { background: #123a2c; color: #4ade80; }
+  .badge.medium { background: #3a3312; color: #facc15; }
+  .badge.high { background: #3a2412; color: #fb923c; }
+  .badge.critical { background: #3a1414; color: #f87171; }
+
+  .risk-bar-track {
+    height: 6px;
+    background: #262b38;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .risk-bar-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
+  .risk-bar-fill.low { background: #4ade80; }
+  .risk-bar-fill.medium { background: #facc15; }
+  .risk-bar-fill.high { background: #fb923c; }
+  .risk-bar-fill.critical { background: #f87171; }
+
+  .panel {
+    background: #171a23;
+    border: 1px solid #262b38;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .panel h2 { font-size: 15px; font-weight: 600; margin-bottom: 14px; }
+
+  .chart-wrap { position: relative; height: 220px; }
+
+  .feature-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #21252f;
+    font-size: 13px;
+  }
+  .feature-row:last-child { border-bottom: none; }
+  .feature-name { color: #d1d4dc; }
+  .feature-impact { font-weight: 600; }
+  .feature-impact.up { color: #f87171; }
+  .feature-impact.down { color: #4ade80; }
+
+  .empty-state { color: #7a7f8c; font-size: 13px; text-align: center; padding: 40px 0; }
+  .status-dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: #4ade80; margin-right: 6px;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+</style>
+</head>
+<body>
+
+<h1>Predictive Network Security Dashboard</h1>
+<p class="subtitle"><span class="status-dot"></span>Live monitoring &middot; auto-refreshing every 3s</p>
+
+<div class="layout">
+  <div class="host-list" id="hostList">
+    <div class="empty-state">Loading hosts...</div>
+  </div>
+
+  <div>
+    <div class="panel">
+      <h2 id="trendTitle">Risk trend</h2>
+      <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+    </div>
+
+    <div class="panel">
+      <h2 id="explainTitle">Why is this risky?</h2>
+      <div id="explainList"><div class="empty-state">Select a host to see explanation</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API_BASE = "http://localhost:8000";
+  let selectedHostId = null;
+  let trendChart = null;
+
+  function severityLabel(sev) {
+    return sev.charAt(0).toUpperCase() + sev.slice(1);
+  }
+
+  async function fetchHosts() {
+    const res = await fetch(`${API_BASE}/api/hosts`);
+    return res.json();
+  }
+
+  async function fetchTrend(hostId) {
+    const res = await fetch(`${API_BASE}/api/hosts/${hostId}/trend`);
+    return res.json();
+  }
+
+  async function fetchExplanation(hostId) {
+    const res = await fetch(`${API_BASE}/api/hosts/${hostId}/explain`);
+    return res.json();
+  }
+
+  function renderHostList(hosts) {
+    const container = document.getElementById("hostList");
+    container.innerHTML = "";
+
+    hosts.sort((a, b) => b.risk - a.risk);
+
+    if (!selectedHostId) selectedHostId = hosts[0].id;
+
+    hosts.forEach(host => {
+      const card = document.createElement("div");
+      card.className = "host-card" + (host.id === selectedHostId ? " selected" : "");
+      card.onclick = () => {
+        selectedHostId = host.id;
+        refreshSelectedHost();
+        renderHostList(hosts);
+      };
+      card.innerHTML = `
+        <div class="host-card-top">
+          <div>
+            <div class="host-label">${host.label}</div>
+            <div class="host-id">${host.id}</div>
+          </div>
+          <span class="badge ${host.severity}">${severityLabel(host.severity)}</span>
+        </div>
+        <div class="risk-bar-track">
+          <div class="risk-bar-fill ${host.severity}" style="width:${host.risk * 100}%"></div>
+        </div>
+      `;
+      container.appendChild(card);
+    });
+  }
+
+  function renderTrendChart(hostLabel, trendData) {
+    document.getElementById("trendTitle").textContent = `Risk trend — ${hostLabel}`;
+    const labels = trendData.map((_, i) => i - trendData.length + 1);
+    const values = trendData.map(p => p.risk);
+
+    const ctx = document.getElementById("trendChart").getContext("2d");
+    if (trendChart) trendChart.destroy();
+    trendChart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          borderColor: "#5b8def",
+          backgroundColor: "rgba(91,141,239,0.1)",
+          fill: true,
+          tension: 0.3,
+          pointRadius: 0,
+          borderWidth: 2,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: "#7a7f8c" }, grid: { color: "#21252f" } },
+          y: { min: 0, max: 1, ticks: { color: "#7a7f8c" }, grid: { color: "#21252f" } }
+        }
+      }
+    });
+  }
+
+  function renderExplanation(hostLabel, data) {
+    document.getElementById("explainTitle").textContent = `Why is ${hostLabel} risky?`;
+    const container = document.getElementById("explainList");
+    container.innerHTML = "";
+
+    if (!data.top_features || data.top_features.length === 0) {
+      container.innerHTML = '<div class="empty-state">No significant risk factors</div>';
+      return;
+    }
+
+    data.top_features.forEach(f => {
+      const row = document.createElement("div");
+      row.className = "feature-row";
+      const isUp = f.impact > 0;
+      row.innerHTML = `
+        <span class="feature-name">${f.feature.replace(/_/g, " ")}</span>
+        <span class="feature-impact ${isUp ? "up" : "down"}">${isUp ? "+" : ""}${f.impact.toFixed(2)}</span>
+      `;
+      container.appendChild(row);
+    });
+  }
+
+  async function refreshSelectedHost() {
+    if (!selectedHostId) return;
+    try {
+      const [trend, explanation] = await Promise.all([
+        fetchTrend(selectedHostId),
+        fetchExplanation(selectedHostId),
+      ]);
+      const hosts = await fetchHosts();
+      const host = hosts.find(h => h.id === selectedHostId);
+      renderTrendChart(host ? host.label : selectedHostId, trend);
+      renderExplanation(host ? host.label : selectedHostId, explanation);
+    } catch (e) {
+      console.error("Failed to refresh host detail:", e);
+    }
+  }
+
+  async function refreshAll() {
+    try {
+      const hosts = await fetchHosts();
+      renderHostList(hosts);
+      await refreshSelectedHost();
+    } catch (e) {
+      document.getElementById("hostList").innerHTML =
+        '<div class="empty-state">Could not connect to backend.<br>Make sure the API is running at ' + API_BASE + '</div>';
+      console.error(e);
+    }
+  }
+
+  refreshAll();
+  setInterval(refreshAll, 3000);
+</script>
+
+</body>
+</html>
