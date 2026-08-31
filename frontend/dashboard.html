@@ -14,81 +14,62 @@
     padding: 24px;
   }
   h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
-  .subtitle { color: #8b8f9a; font-size: 13px; margin-bottom: 24px; }
+  .subtitle { color: #8b8f9a; font-size: 13px; margin-bottom: 20px; }
 
-  .layout {
-    display: grid;
-    grid-template-columns: 320px 1fr;
-    gap: 20px;
-    align-items: start;
+  .tab-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid #262b38;
+    padding-bottom: 12px;
+    flex-wrap: wrap;
   }
-
-  .host-list { display: flex; flex-direction: column; gap: 10px; }
-
-  .host-card {
+  .tab-btn {
     background: #171a23;
     border: 1px solid #262b38;
-    border-radius: 10px;
-    padding: 14px 16px;
+    color: #c3c9d6;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 8px;
     cursor: pointer;
-    transition: border-color 0.15s ease;
+    transition: all 0.15s ease;
   }
+  .tab-btn:hover { border-color: #3a4256; }
+  .tab-btn.active { background: #5b8def; border-color: #5b8def; color: #0f1117; }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .layout { display: grid; grid-template-columns: 320px 1fr; gap: 20px; align-items: start; }
+  .host-list { display: flex; flex-direction: column; gap: 10px; }
+  .host-card { background: #171a23; border: 1px solid #262b38; border-radius: 10px; padding: 14px 16px; cursor: pointer; transition: border-color 0.15s ease; }
   .host-card:hover { border-color: #3a4256; }
   .host-card.selected { border-color: #5b8def; background: #1a2030; }
-
-  .host-card-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-  }
+  .host-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
   .host-label { font-size: 14px; font-weight: 600; }
   .host-id { font-size: 11px; color: #7a7f8c; }
 
-  .badge {
-    font-size: 11px;
-    font-weight: 600;
-    padding: 3px 9px;
-    border-radius: 999px;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-  }
+  .badge { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.03em; }
   .badge.low { background: #123a2c; color: #4ade80; }
   .badge.medium { background: #3a3312; color: #facc15; }
   .badge.high { background: #3a2412; color: #fb923c; }
   .badge.critical { background: #3a1414; color: #f87171; }
 
-  .risk-bar-track {
-    height: 6px;
-    background: #262b38;
-    border-radius: 4px;
-    overflow: hidden;
-  }
+  .risk-bar-track { height: 6px; background: #262b38; border-radius: 4px; overflow: hidden; }
   .risk-bar-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
   .risk-bar-fill.low { background: #4ade80; }
   .risk-bar-fill.medium { background: #facc15; }
   .risk-bar-fill.high { background: #fb923c; }
   .risk-bar-fill.critical { background: #f87171; }
 
-  .panel {
-    background: #171a23;
-    border: 1px solid #262b38;
-    border-radius: 10px;
-    padding: 20px;
-    margin-bottom: 20px;
-  }
-  .panel h2 { font-size: 15px; font-weight: 600; margin-bottom: 14px; }
+  .panel { background: #171a23; border: 1px solid #262b38; border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+  .panel h2 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .panel .desc { font-size: 12px; color: #8b8f9a; margin-bottom: 16px; }
 
   .chart-wrap { position: relative; height: 220px; }
 
-  .feature-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 0;
-    border-bottom: 1px solid #21252f;
-    font-size: 13px;
-  }
+  .feature-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #21252f; font-size: 13px; }
   .feature-row:last-child { border-bottom: none; }
   .feature-name { color: #d1d4dc; }
   .feature-impact { font-weight: 600; }
@@ -96,88 +77,191 @@
   .feature-impact.down { color: #4ade80; }
 
   .empty-state { color: #7a7f8c; font-size: 13px; text-align: center; padding: 40px 0; }
-  .status-dot {
-    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
-    background: #4ade80; margin-right: 6px;
-    animation: pulse 2s infinite;
-  }
+  .status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #4ade80; margin-right: 6px; animation: pulse 2s infinite; }
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+  .stat-card { background: #171a23; border: 1px solid #262b38; border-radius: 10px; padding: 16px; }
+  .stat-label { font-size: 11px; color: #8b8f9a; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 6px; }
+  .stat-value { font-size: 22px; font-weight: 700; }
+  .stat-note { font-size: 11px; color: #6b7080; margin-top: 4px; }
+  .badge-imbalance { display: inline-block; background: #3a2412; color: #fb923c; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; margin-top: 6px; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #21252f; }
+  th { color: #8b8f9a; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.02em; }
+  td.num { font-variant-numeric: tabular-nums; }
+  tr.highlight td { color: #5b8def; font-weight: 600; }
+
+  .callout { background: #1a2030; border: 1px solid #2a3555; border-left: 3px solid #5b8def; border-radius: 6px; padding: 12px 14px; font-size: 12.5px; color: #c3c9d6; margin-top: 16px; line-height: 1.5; }
 </style>
 </head>
 <body>
 
 <h1>Predictive Network Security Dashboard</h1>
-<p class="subtitle"><span class="status-dot"></span>Live monitoring &middot; auto-refreshing every 3s</p>
+<p class="subtitle"><span class="status-dot"></span>Live monitoring &middot; model evaluation &middot; auto-refreshing every 3s</p>
 
-<div class="layout">
-  <div class="host-list" id="hostList">
-    <div class="empty-state">Loading hosts...</div>
-  </div>
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="live">Live Monitoring</button>
+  <button class="tab-btn" data-tab="dataset">Dataset Summary</button>
+  <button class="tab-btn" data-tab="benchmark">Benchmark Comparison</button>
+  <button class="tab-btn" data-tab="threshold">Threshold Analysis</button>
+  <button class="tab-btn" data-tab="training">Training Progress</button>
+</div>
 
-  <div>
-    <div class="panel">
-      <h2 id="trendTitle">Risk trend</h2>
-      <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+<div class="tab-content active" id="tab-live">
+  <div class="layout">
+    <div class="host-list" id="hostList">
+      <div class="empty-state">Loading hosts...</div>
     </div>
-
-    <div class="panel">
-      <h2 id="explainTitle">Why is this risky?</h2>
-      <div id="explainList"><div class="empty-state">Select a host to see explanation</div></div>
+    <div>
+      <div class="panel">
+        <h2 id="trendTitle">Risk trend</h2>
+        <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2 id="explainTitle">Why is this risky?</h2>
+        <div id="explainList"><div class="empty-state">Select a host to see explanation</div></div>
+      </div>
     </div>
   </div>
 </div>
 
+<div class="tab-content" id="tab-dataset">
+  <div class="grid">
+    <div class="stat-card">
+      <div class="stat-label">Rows loaded</div>
+      <div class="stat-value">97,907</div>
+      <div class="stat-note">0.3% malicious</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Sequences built</div>
+      <div class="stat-value">97,816</div>
+      <div class="stat-note">window shape (10, 8)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Class imbalance</div>
+      <div class="stat-value">133.1&times;</div>
+      <div class="stat-note">496 positive / 66,018 negative</div>
+      <div class="badge-imbalance">Severe imbalance</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Best model (by F1)</div>
+      <div class="stat-value">LSTM</div>
+      <div class="stat-note">F1 0.064 vs LogReg 0.000</div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="callout">
+      Attacks make up only 0.3% of the dataset — this severe class imbalance is why raw accuracy is a misleading metric for this project, and why the benchmark and threshold tabs focus on precision/recall instead.
+    </div>
+  </div>
+</div>
+
+<div class="tab-content" id="tab-benchmark">
+  <div class="panel">
+    <h2>Benchmark comparison</h2>
+    <div class="desc">Test set performance &middot; 19,564 samples (146 positive)</div>
+    <div class="two-col">
+      <div>
+        <table>
+          <thead><tr><th>Model</th><th>F1</th><th>Precision</th><th>Recall</th></tr></thead>
+          <tbody>
+            <tr class="highlight"><td>World model (LSTM)</td><td class="num">0.0637</td><td class="num">0.0332</td><td class="num">0.7808</td></tr>
+            <tr><td>Baseline (LogReg)</td><td class="num">0.0000</td><td class="num">0.0000</td><td class="num">0.0000</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">
+          The baseline predicts <strong>zero</strong> attacks — a trivial "always predict normal" model on a 0.3% attack rate still scores 99% accuracy. The LSTM's 78% recall (catching most real attacks) is what actually matters here.
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="benchmarkChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<div class="tab-content" id="tab-threshold">
+  <div class="panel">
+    <h2>Precision-recall threshold analysis (LSTM)</h2>
+    <div class="desc">Choosing the decision threshold trades recall (catching attacks) against precision (avoiding false alarms)</div>
+    <div class="two-col">
+      <div class="chart-wrap"><canvas id="thresholdChart"></canvas></div>
+      <div>
+        <table>
+          <thead><tr><th>Target</th><th>Threshold</th><th>Precision</th><th>Recall</th></tr></thead>
+          <tbody>
+            <tr><td>Recall &ge; 90%</td><td class="num">0.217</td><td class="num">0.018</td><td class="num">0.904</td></tr>
+            <tr><td>Recall &ge; 80%</td><td class="num">0.462</td><td class="num">0.030</td><td class="num">0.801</td></tr>
+            <tr><td>Recall &ge; 70%</td><td class="num">0.594</td><td class="num">0.042</td><td class="num">0.705</td></tr>
+            <tr class="highlight"><td>Best F1</td><td class="num">0.765</td><td class="num">0.068</td><td class="num">0.486</td></tr>
+            <tr><td>Default (0.50)</td><td class="num">0.500</td><td class="num">0.033</td><td class="num">0.781</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">
+          For a CII deployment, missing an attack is far costlier than a false alarm — operating near <strong>recall &ge; 90%</strong> (threshold 0.217) is the defensible choice, even though precision is low at that point.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tab-content" id="tab-training">
+  <div class="panel">
+    <h2>Training progress</h2>
+    <div class="desc">Validation F1 and training loss across 15 epochs &mdash; noisy due to extreme class imbalance and small positive-class sample size</div>
+    <div class="chart-wrap"><canvas id="trainingChart"></canvas></div>
+  </div>
+</div>
+
 <script>
+  const tabButtons = document.querySelectorAll(".tab-btn");
+  const tabContents = document.querySelectorAll(".tab-content");
+  let chartsInitialized = { benchmark: false, threshold: false, training: false };
+
+  tabButtons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      tabButtons.forEach(b => b.classList.remove("active"));
+      tabContents.forEach(c => c.classList.remove("active"));
+      btn.classList.add("active");
+      const tabId = "tab-" + btn.dataset.tab;
+      document.getElementById(tabId).classList.add("active");
+      initChartForTab(btn.dataset.tab);
+    });
+  });
+
+  function initChartForTab(tab) {
+    if (tab === "benchmark" && !chartsInitialized.benchmark) { renderBenchmarkChart(); chartsInitialized.benchmark = true; }
+    if (tab === "threshold" && !chartsInitialized.threshold) { renderThresholdChart(); chartsInitialized.threshold = true; }
+    if (tab === "training" && !chartsInitialized.training) { renderTrainingChart(); chartsInitialized.training = true; }
+  }
+
   const API_BASE = "http://localhost:8000";
   let selectedHostId = null;
   let trendChart = null;
 
-  function severityLabel(sev) {
-    return sev.charAt(0).toUpperCase() + sev.slice(1);
-  }
+  function severityLabel(sev) { return sev.charAt(0).toUpperCase() + sev.slice(1); }
 
-  async function fetchHosts() {
-    const res = await fetch(`${API_BASE}/api/hosts`);
-    return res.json();
-  }
-
-  async function fetchTrend(hostId) {
-    const res = await fetch(`${API_BASE}/api/hosts/${hostId}/trend`);
-    return res.json();
-  }
-
-  async function fetchExplanation(hostId) {
-    const res = await fetch(`${API_BASE}/api/hosts/${hostId}/explain`);
-    return res.json();
-  }
+  async function fetchHosts() { const res = await fetch(`${API_BASE}/api/hosts`); return res.json(); }
+  async function fetchTrend(hostId) { const res = await fetch(`${API_BASE}/api/hosts/${hostId}/trend`); return res.json(); }
+  async function fetchExplanation(hostId) { const res = await fetch(`${API_BASE}/api/hosts/${hostId}/explain`); return res.json(); }
 
   function renderHostList(hosts) {
     const container = document.getElementById("hostList");
     container.innerHTML = "";
-
     hosts.sort((a, b) => b.risk - a.risk);
-
     if (!selectedHostId) selectedHostId = hosts[0].id;
 
     hosts.forEach(host => {
       const card = document.createElement("div");
       card.className = "host-card" + (host.id === selectedHostId ? " selected" : "");
-      card.onclick = () => {
-        selectedHostId = host.id;
-        refreshSelectedHost();
-        renderHostList(hosts);
-      };
+      card.onclick = () => { selectedHostId = host.id; refreshSelectedHost(); renderHostList(hosts); };
       card.innerHTML = `
         <div class="host-card-top">
-          <div>
-            <div class="host-label">${host.label}</div>
-            <div class="host-id">${host.id}</div>
-          </div>
+          <div><div class="host-label">${host.label}</div><div class="host-id">${host.id}</div></div>
           <span class="badge ${host.severity}">${severityLabel(host.severity)}</span>
         </div>
-        <div class="risk-bar-track">
-          <div class="risk-bar-fill ${host.severity}" style="width:${host.risk * 100}%"></div>
-        </div>
+        <div class="risk-bar-track"><div class="risk-bar-fill ${host.severity}" style="width:${host.risk * 100}%"></div></div>
       `;
       container.appendChild(card);
     });
@@ -187,32 +271,13 @@
     document.getElementById("trendTitle").textContent = `Risk trend — ${hostLabel}`;
     const labels = trendData.map((_, i) => i - trendData.length + 1);
     const values = trendData.map(p => p.risk);
-
     const ctx = document.getElementById("trendChart").getContext("2d");
     if (trendChart) trendChart.destroy();
     trendChart = new Chart(ctx, {
       type: "line",
-      data: {
-        labels,
-        datasets: [{
-          data: values,
-          borderColor: "#5b8def",
-          backgroundColor: "rgba(91,141,239,0.1)",
-          fill: true,
-          tension: 0.3,
-          pointRadius: 0,
-          borderWidth: 2,
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { ticks: { color: "#7a7f8c" }, grid: { color: "#21252f" } },
-          y: { min: 0, max: 1, ticks: { color: "#7a7f8c" }, grid: { color: "#21252f" } }
-        }
-      }
+      data: { labels, datasets: [{ data: values, borderColor: "#5b8def", backgroundColor: "rgba(91,141,239,0.1)", fill: true, tension: 0.3, pointRadius: 0, borderWidth: 2 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+        scales: { x: { ticks: { color: "#7a7f8c" }, grid: { color: "#21252f" } }, y: { min: 0, max: 1, ticks: { color: "#7a7f8c" }, grid: { color: "#21252f" } } } }
     });
   }
 
@@ -220,20 +285,15 @@
     document.getElementById("explainTitle").textContent = `Why is ${hostLabel} risky?`;
     const container = document.getElementById("explainList");
     container.innerHTML = "";
-
     if (!data.top_features || data.top_features.length === 0) {
       container.innerHTML = '<div class="empty-state">No significant risk factors</div>';
       return;
     }
-
     data.top_features.forEach(f => {
       const row = document.createElement("div");
       row.className = "feature-row";
       const isUp = f.impact > 0;
-      row.innerHTML = `
-        <span class="feature-name">${f.feature.replace(/_/g, " ")}</span>
-        <span class="feature-impact ${isUp ? "up" : "down"}">${isUp ? "+" : ""}${f.impact.toFixed(2)}</span>
-      `;
+      row.innerHTML = `<span class="feature-name">${f.feature.replace(/_/g, " ")}</span><span class="feature-impact ${isUp ? "up" : "down"}">${isUp ? "+" : ""}${f.impact.toFixed(2)}</span>`;
       container.appendChild(row);
     });
   }
@@ -241,17 +301,12 @@
   async function refreshSelectedHost() {
     if (!selectedHostId) return;
     try {
-      const [trend, explanation] = await Promise.all([
-        fetchTrend(selectedHostId),
-        fetchExplanation(selectedHostId),
-      ]);
+      const [trend, explanation] = await Promise.all([fetchTrend(selectedHostId), fetchExplanation(selectedHostId)]);
       const hosts = await fetchHosts();
       const host = hosts.find(h => h.id === selectedHostId);
       renderTrendChart(host ? host.label : selectedHostId, trend);
       renderExplanation(host ? host.label : selectedHostId, explanation);
-    } catch (e) {
-      console.error("Failed to refresh host detail:", e);
-    }
+    } catch (e) { console.error("Failed to refresh host detail:", e); }
   }
 
   async function refreshAll() {
@@ -268,6 +323,58 @@
 
   refreshAll();
   setInterval(refreshAll, 3000);
+
+  const gridColor = "#21252f";
+  const tickColor = "#7a7f8c";
+
+  function renderBenchmarkChart() {
+    new Chart(document.getElementById("benchmarkChart"), {
+      type: "bar",
+      data: {
+        labels: ["F1", "Precision", "Recall"],
+        datasets: [
+          { label: "LSTM", data: [0.0637, 0.0332, 0.7808], backgroundColor: "#5b8def" },
+          { label: "LogReg", data: [0.0, 0.0, 0.0], backgroundColor: "#3a4256" },
+        ]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: "#c3c9d6" } } },
+        scales: { x: { ticks: { color: tickColor }, grid: { color: gridColor } }, y: { min: 0, max: 1, ticks: { color: tickColor }, grid: { color: gridColor } } } }
+    });
+  }
+
+  function renderThresholdChart() {
+    const thresholds = [0.217, 0.462, 0.500, 0.594, 0.765];
+    const precisions = [0.018, 0.030, 0.033, 0.042, 0.068];
+    const recalls =    [0.904, 0.801, 0.781, 0.705, 0.486];
+    new Chart(document.getElementById("thresholdChart"), {
+      type: "line",
+      data: { labels: thresholds, datasets: [
+        { label: "Precision", data: precisions, borderColor: "#facc15", backgroundColor: "rgba(250,204,21,0.08)", tension: 0.3, borderWidth: 2 },
+        { label: "Recall", data: recalls, borderColor: "#4ade80", backgroundColor: "rgba(74,222,128,0.08)", tension: 0.3, borderWidth: 2 },
+      ]},
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: "#c3c9d6" } } },
+        scales: { x: { title: { display: true, text: "Threshold", color: tickColor }, ticks: { color: tickColor }, grid: { color: gridColor } }, y: { min: 0, max: 1, ticks: { color: tickColor }, grid: { color: gridColor } } } }
+    });
+  }
+
+  function renderTrainingChart() {
+    const epochs = Array.from({length: 15}, (_, i) => i + 1);
+    const valF1 = [0.0557,0.0301,0.0388,0.0329,0.0684,0.0510,0.0374,0.0474,0.0552,0.0717,0.0608,0.0455,0.0464,0.0676,0.0577];
+    const trainLoss = [1.3600,1.2738,1.2016,1.1411,1.0916,1.1178,1.0808,1.0445,0.9994,0.9790,0.9635,0.9496,0.9191,0.8953,0.8686];
+    new Chart(document.getElementById("trainingChart"), {
+      type: "line",
+      data: { labels: epochs, datasets: [
+        { label: "Validation F1", data: valF1, borderColor: "#5b8def", backgroundColor: "rgba(91,141,239,0.08)", yAxisID: "y", tension: 0.3, borderWidth: 2 },
+        { label: "Train loss", data: trainLoss, borderColor: "#f87171", backgroundColor: "rgba(248,113,113,0.05)", yAxisID: "y1", tension: 0.3, borderWidth: 2, borderDash: [4,3] },
+      ]},
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: "#c3c9d6" } } },
+        scales: {
+          x: { title: { display: true, text: "Epoch", color: tickColor }, ticks: { color: tickColor }, grid: { color: gridColor } },
+          y: { position: "left", min: 0, max: 0.15, ticks: { color: "#5b8def" }, grid: { color: gridColor }, title: { display: true, text: "Val F1", color: "#5b8def" } },
+          y1: { position: "right", min: 0, max: 1.5, ticks: { color: "#f87171" }, grid: { drawOnChartArea: false }, title: { display: true, text: "Train loss", color: "#f87171" } }
+        } }
+    });
+  }
 </script>
 
 </body>
