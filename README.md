@@ -1,68 +1,59 @@
-# Adaptive Behavioural Attack-Chain Detection for Non-IoC Compromise Detection
+# CyberFlux
 
-An AI-powered cybersecurity system developed for **Smart India Hackathon 2026** under the problem statement:
+### AI-Powered Network Attacks Forecasting and Behavior-based Attack Chains Detection
 
-> **Adaptive Behavioural Attack-Chain Detection for Non-IoC Compromise Detection**
+**Smart India Hackathon 2026 — PS #26153**
 
-## Overview
+CyberFlux is an AI-based network security solution that analyzes network traffic in order to detect behavioral anomalies and find the progression of possible attacks.
 
-The system detects potentially compromised hosts without relying solely on traditional Indicators of Compromise (IoCs) such as known IPs, hashes, signatures, or domains.
-
-It analyzes **host behaviour, network-flow characteristics, anomalies, and temporal patterns** to identify suspicious activity, assign dynamic risk scores, and correlate behavioural anomalies into potential attack chains.
+As opposed to using only known IoCs, CyberFlux looks for **behavioral anomalies in the network traffic**.
 
 ## Key Features
 
-* Network-flow preprocessing and normalization
-* Host-level behavioural feature extraction
-* Time-window based analysis
-* Isolation Forest anomaly detection
-* Dynamic host risk scoring
-* Behavioural indicators such as:
+* Feature extraction from network flows
+* 30-second behavioral windows at the host level
+* Behavioral anomaly detection
+* Threat risk scores
+* Explainable detection
+* Attack chain correlation
+* Temporal attack forecasting
+* SOC-oriented visualization
 
-  * Connection volume
-  * Port diversity
-  * Destination diversity
-  * Temporal activity
-* Explainable risk factors
-* Attack-chain correlation
-* SOC-style monitoring dashboard
-
-## Detection Pipeline
+## Detection pipeline
 
 ```text
 Network Traffic
       ↓
 Feature Extraction
       ↓
-Host-Level Time Windows
+Behavioral Windows
       ↓
 Anomaly Detection
       ↓
 Risk Scoring
       ↓
-Attack-Chain Correlation
+Attack Chain Detection
       ↓
-Explainable Detection
+Attack Forecasting
       ↓
 SOC Dashboard
 ```
 
-## Technology Stack
+## Tech stack
 
-* Python
-* Pandas
-* NumPy
-* Scikit-learn
-* Isolation Forest
-* Next.js
-* Machine Learning
+**Machine Learning:** Python, Pandas, NumPy, Scikit-learn, Isolation Forest
+**Backend:** FastAPI
+**Frontend:** Next.js, React, TypeScript, Tailwind CSS, Recharts
 
-## Objective
+## Data
 
-The goal is to identify **novel and non-IoC-based compromises** by focusing on behavioural deviations rather than relying exclusively on known attack signatures.
+CyberFlux supports network flows and packet-level traffic data including CIC-IDS2017 dataset and will include PCAP data support soon.
 
-The system aims to help SOC analysts identify suspicious hosts, understand why they were flagged, and prioritize potential threats.
+## Roadmap
 
-## Project Status
-
-Currently under active development for **Smart India Hackathon 2026**.
+* Live packets monitoring
+* PCAP analysis
+* MITRE ATT&CK mapping
+* Temporal attacks forecasting
+* Explainable predictions
+* Real-time SOC dashboard
