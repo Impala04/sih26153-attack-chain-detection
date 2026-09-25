@@ -31,7 +31,14 @@ WINDOW_SECONDS_DEFAULT = 30
 # Raw CICFlowMeter columns have inconsistent leading spaces across files.
 # Strip them immediately on load so all downstream code can use clean names.
 def load_and_clean(path: str) -> pd.DataFrame:
-    df = pd.read_csv(path, low_memory=False)
+    # Some CIC-IDS2017 files (e.g. the WebAttacks file) contain non-UTF-8
+    # bytes. Try utf-8 first, fall back to latin-1 (which accepts any byte
+    # value) rather than crashing the whole pipeline on one file.
+    try:
+        df = pd.read_csv(path, low_memory=False, encoding="utf-8")
+    except UnicodeDecodeError:
+        print(f"  (utf-8 decode failed for {os.path.basename(path)}, retrying with latin-1)")
+        df = pd.read_csv(path, low_memory=False, encoding="latin-1")
     df.columns = [c.strip() for c in df.columns]
     return df
 
