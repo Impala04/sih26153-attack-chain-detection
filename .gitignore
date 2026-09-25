@@ -218,6 +218,8 @@ __marimo__/
 .streamlit/secrets.toml
 data/*.csv
 data/**/*.csv
+# Locally trained model artifacts; regenerate with src/model/train.py.
+models/
 # Next.js
 node_modules/
 .next/
