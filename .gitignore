@@ -14,7 +14,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+# lib/ is used by the Next.js frontend
 lib64/
 parts/
 sdist/
@@ -218,3 +218,8 @@ __marimo__/
 .streamlit/secrets.toml
 data/*.csv
 data/**/*.csv
+# Next.js
+node_modules/
+.next/
+out/
+
