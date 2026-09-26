@@ -11,6 +11,25 @@ from src.processing.window_manager import WindowManager
 
 SOURCE_IP = "192.168.1.10"
 
+EXPECTED_PHASE1_FEATURE_COLUMNS = [
+    "connection_count",
+    "unique_destinations",
+    "unique_ports",
+    "total_fwd_packets",
+    "total_bwd_packets",
+    "total_bytes_fwd",
+    "total_bytes_bwd",
+    "avg_flow_duration",
+    "max_flow_duration",
+    "std_flow_duration",
+    "max_bytes_total",
+    "std_bytes_total",
+    "max_packets_total",
+    "bytes_per_connection",
+    "flows_per_second",
+    "lateral_move_flag",
+]
+
 
 def make_flow(dst_ip, dst_port, start, packet_count, total_bytes, duration, sizes):
     return FlowStats(
@@ -24,6 +43,10 @@ def make_flow(dst_ip, dst_port, start, packet_count, total_bytes, duration, size
         ack_count=max(0, packet_count - 1),
         rst_count=0,
         fin_count=0,
+        forward_packet_count=packet_count,
+        backward_packet_count=0,
+        forward_payload_bytes=total_bytes,
+        backward_payload_bytes=0,
     )
 
 
@@ -94,10 +117,12 @@ class WindowFeatureTests(unittest.TestCase):
         )
         self.assertEqual(first_destination_row["connection_count"], 1)
         self.assertEqual(first_destination_row["total_fwd_packets"], 2)
+        self.assertEqual(first_destination_row["total_bwd_packets"], 0)
         self.assertEqual(first_destination_row["total_bytes_fwd"], 1200)
-        self.assertEqual(first_destination_row["max_flow_duration"], 2)
+        self.assertEqual(first_destination_row["total_bytes_bwd"], 0)
+        self.assertEqual(first_destination_row["max_flow_duration"], 2_000_000)
 
-    def test_feature_rows_include_all_phase1_feature_names(self):
+    def test_feature_rows_include_all_phase1_feature_names_in_order(self):
         start = datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         manager = WindowManager(window_seconds=30)
         manager.add_completed_flow(
@@ -116,7 +141,8 @@ class WindowFeatureTests(unittest.TestCase):
         rows = FeatureExtractor().extract(windows)
 
         self.assertEqual(len(rows), 1)
-        for column in PHASE1_FEATURE_COLUMNS:
+        self.assertEqual(PHASE1_FEATURE_COLUMNS, EXPECTED_PHASE1_FEATURE_COLUMNS)
+        for column in EXPECTED_PHASE1_FEATURE_COLUMNS:
             self.assertIn(column, rows[0])
 
 
