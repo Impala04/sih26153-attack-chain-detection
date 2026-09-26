@@ -22,6 +22,7 @@ class ParsedPacket:
     dst_ip: str
     protocol: str  # "TCP" | "UDP" | "ICMP" | "OTHER"
     packet_length: int
+    payload_length: int = 0
 
     # Not every protocol has ports/flags — these are None when not
     # applicable (e.g. ICMP has no ports; UDP has no TCP flags).
@@ -39,4 +40,5 @@ class ParsedPacket:
             "protocol": self.protocol,
             "packet_length": self.packet_length,
             "tcp_flags": self.tcp_flags,
+            "payload_length": self.payload_length,
         }
