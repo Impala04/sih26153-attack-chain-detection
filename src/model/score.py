@@ -19,7 +19,7 @@ from pathlib import Path
 import joblib
 import pandas as pd
 
-from train import (
+from .train import (
     add_lateral_move_flag,
     compute_anomaly_risk,
     compute_risk_score,

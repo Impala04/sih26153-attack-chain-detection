@@ -136,6 +136,8 @@ def train(input_path: str, output_path: str, model_path: str, contamination: flo
     iso = IsolationForest(contamination=contamination, random_state=42)
     df["anomaly_score"] = iso.fit_predict(X)
     df["anomaly_score_raw"] = iso.decision_function(X)
+    raw_min = float(df["anomaly_score_raw"].min())
+    raw_max = float(df["anomaly_score_raw"].max())
 
     df = compute_anomaly_risk(df)
     df = compute_risk_score(df)
@@ -147,7 +149,14 @@ def train(input_path: str, output_path: str, model_path: str, contamination: flo
     joblib.dump(iso, model_path)
     meta_path = str(Path(model_path).with_suffix(".meta.json"))
     with open(meta_path, "w") as f:
-        json.dump({"feature_cols": FEATURE_COLS, "contamination": contamination}, f, indent=2)
+        
+        json.dump({"feature_cols": FEATURE_COLS,
+                "contamination": contamination,
+                "anomaly_score_raw_min": raw_min,
+                "anomaly_score_raw_max": raw_max,},
+                f,
+                indent=2,
+                )
     print(f"Saved model to {model_path}")
     print(f"Saved feature metadata to {meta_path}")
 
