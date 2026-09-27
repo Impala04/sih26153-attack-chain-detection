@@ -1,4 +1,4 @@
-"""Build chronological temporal sequences from CIC window features."""
+﻿"""Build chronological temporal sequences from CIC window features."""
 
 from dataclasses import dataclass
 from typing import List, Sequence, Tuple
@@ -152,7 +152,19 @@ def build_sequences(
 
         values = group[list(feature_columns)].to_numpy(dtype=np.float32)
         group_labels = group[target_column].to_numpy(dtype=np.float32)
-        time_ns = group[time_column].astype("int64").to_numpy()
+        # Force nanosecond resolution explicitly: pandas >= 3.0 defaults
+        # pd.to_datetime(..., utc=True) to microsecond resolution rather
+        # than the nanosecond resolution pandas 2.x used, which silently
+        # broke the interval check below (it compared against a
+        # hardcoded nanosecond-per-second constant). Casting explicitly
+        # makes this correct regardless of the pandas version's default.
+        time_ns = (
+            group[time_column]
+            .dt.tz_convert(None)
+            .to_numpy()
+            .astype("datetime64[ns]")
+            .astype("int64")
+        )
 
         total_length = sequence_length + forecast_horizon
         for start in range(0, len(group) - total_length + 1):
