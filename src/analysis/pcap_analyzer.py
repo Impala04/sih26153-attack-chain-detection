@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -18,7 +19,10 @@ PROTOCOLS = ("TCP", "UDP", "ICMP", "OTHER")
 def _iso_time(epoch: float | None) -> str | None:
     if epoch is None:
         return None
-    return datetime.fromtimestamp(epoch, timezone.utc).isoformat()
+    try:
+        return datetime.fromtimestamp(epoch, timezone.utc).isoformat()
+    except (OverflowError, OSError, ValueError):
+        return None
 
 
 def _top(counter: Counter, limit: int) -> list[dict[str, Any]]:
@@ -32,8 +36,8 @@ def analyze_pcap(path: str | Path, window_seconds: float = 1.0, top_n: int = 10)
     Packet size uses ``len(raw_scapy_packet)`` from the shared parser, in bytes.
     """
     capture_path = Path(path)
-    if window_seconds <= 0:
-        raise ValueError("window_seconds must be greater than zero")
+    if not math.isfinite(window_seconds) or window_seconds <= 0:
+        raise ValueError("window_seconds must be a finite number greater than zero")
     if top_n < 0:
         raise ValueError("top_n cannot be negative")
     try:
@@ -60,6 +64,8 @@ def analyze_pcap(path: str | Path, window_seconds: float = 1.0, top_n: int = 10)
     max_size = 0
 
     for packet in iter_pcap(capture_path):
+        if not math.isfinite(packet.timestamp):
+            continue
         if first_time is None:
             first_time = packet.timestamp
         last_time = packet.timestamp
@@ -139,6 +145,25 @@ def analyze_pcap(path: str | Path, window_seconds: float = 1.0, top_n: int = 10)
         str(port): {"source_packets": source_ports[port], "destination_packets": destination_ports[port]}
         for port in SERVICE_PORTS if source_ports[port] or destination_ports[port]
     }
+    observations: list[str] = []
+    if total_packets == 0:
+        observations.append("No supported IPv4 packets were available for analysis.")
+    else:
+        peak_packets_per_second = max(
+            bucket["packet_count"] / window_seconds for bucket in window_stats.values()
+        )
+        peak_bytes_per_second = max(
+            bucket["byte_count"] / window_seconds for bucket in window_stats.values()
+        )
+        peak_window_destinations = max(
+            len(bucket["destination_ips"]) for bucket in window_stats.values()
+        )
+        if peak_packets_per_second >= 1000:
+            observations.append("A time window reached at least 1,000 packets per second.")
+        if peak_bytes_per_second >= 10_000_000:
+            observations.append("A time window carried at least 10,000,000 bytes per second.")
+        if peak_window_destinations >= 50:
+            observations.append("A time window included at least 50 unique destination IP addresses.")
 
     return {
         "file": {"name": capture_path.name, "size_bytes": file_size},
@@ -178,7 +203,7 @@ def analyze_pcap(path: str | Path, window_seconds: float = 1.0, top_n: int = 10)
         "tcp_flags": {name: flag_counts[name] for name in ("SYN", "SYN-ACK", "ACK", "FIN", "RST", "PSH", "URG", "ECE", "CWR")},
         "top_communications": communications,
         "time_series": time_series,
-        "observations": [],
+        "observations": observations,
     }
 
 
@@ -206,8 +231,8 @@ def write_html_report(report: dict[str, Any], path: str | Path) -> None:
 <h2>Top destination IPs</h2><table><tr><th>IP</th><th>Packets</th></tr>{ranked_rows(report['ips']['top_destinations'])}</table>
 <h2>Top source ports</h2><table><tr><th>Port</th><th>Packets</th></tr>{ranked_rows(report['ports']['top_sources'])}</table>
 <h2>Top destination ports</h2><table><tr><th>Port</th><th>Packets</th></tr>{ranked_rows(report['ports']['top_destinations'])}</table>
-<h2>Traffic over time</h2><canvas id="chart" width="950" height="260"></canvas><table><tr><th>Window start (UTC)</th><th>Packet count</th></tr>{table_rows}</table>
-<script>const values={json.dumps([item['packet_count'] for item in series])};const c=document.getElementById('chart'),x=c.getContext('2d'),m=Math.max(1,...values),w=c.width,h=c.height;x.beginPath();x.strokeStyle='#2563eb';values.forEach((v,i)=>{{const px=20+i*(w-40)/Math.max(1,values.length-1),py=h-20-v/m*(h-40);i?x.lineTo(px,py):x.moveTo(px,py)}});x.stroke();</script></body></html>"""
+<h2>Traffic over time</h2><canvas id="chart" width="950" height="260"></canvas><table><tr><th>Window start (UTC)</th><th>Packets per second</th></tr>{table_rows}</table>
+<script>const values={json.dumps(values, allow_nan=False)};const c=document.getElementById('chart'),x=c.getContext('2d'),m=Math.max(1,...values),w=c.width,h=c.height;x.beginPath();x.strokeStyle='#2563eb';values.forEach((v,i)=>{{const px=20+i*(w-40)/Math.max(1,values.length-1),py=h-20-v/m*(h-40);i?x.lineTo(px,py):x.moveTo(px,py)}});x.stroke();</script></body></html>"""
     Path(path).write_text(document, encoding="utf-8")
 
 
@@ -219,11 +244,14 @@ def main() -> None:
     parser.add_argument("--window", type=float, default=1.0, help="Time-series window in seconds (default: 1)")
     parser.add_argument("--top", type=int, default=10, help="Number of top IPs, ports, and pairs to include")
     args = parser.parse_args()
-    report = analyze_pcap(args.path, window_seconds=args.window, top_n=args.top)
     output = Path(args.output) if args.output else Path(args.path).with_name(f"{Path(args.path).stem}_analysis.json")
-    output.write_text(json.dumps(report, indent=2), encoding="utf-8")
-    if args.html:
-        write_html_report(report, args.html)
+    try:
+        report = analyze_pcap(args.path, window_seconds=args.window, top_n=args.top)
+        output.write_text(json.dumps(report, indent=2, allow_nan=False), encoding="utf-8")
+        if args.html:
+            write_html_report(report, args.html)
+    except (PcapReadError, ValueError, OSError) as exc:
+        parser.error(str(exc))
     print(f"Wrote {output}")
     if args.html:
         print(f"Wrote {args.html}")
