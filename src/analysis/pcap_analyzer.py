@@ -8,9 +8,11 @@ import math
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
+from src.capture.packet_schema import ParsedPacket
 from src.ingestion.pcap_reader import PcapReadError, iter_pcap
+from src.analysis.pcap_json_report import write_json_report
 
 SERVICE_PORTS = (22, 53, 80, 443, 445, 3389, 8080)
 PROTOCOLS = ("TCP", "UDP", "ICMP", "OTHER")
@@ -29,21 +31,38 @@ def _top(counter: Counter, limit: int) -> list[dict[str, Any]]:
     return [{"value": key, "packets": count} for key, count in counter.most_common(limit)]
 
 
-def analyze_pcap(path: str | Path, window_seconds: float = 1.0, top_n: int = 10) -> dict[str, Any]:
-    """Analyze a capture in one pass and return a JSON-serializable report.
+def _packet_timestamp(packet: ParsedPacket) -> float | None:
+    """Return a finite, datetime-representable timestamp or skip the record."""
+    value = getattr(packet, "timestamp", None)
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        timestamp = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if not math.isfinite(timestamp) or _iso_time(timestamp) is None:
+        return None
+    return timestamp
+
+
+def analyze_packets(
+    packets: Iterable[ParsedPacket],
+    window_seconds: float = 1.0,
+    top_n: int = 10,
+    *,
+    capture_name: str = "<packets>",
+    file_size: int = 0,
+) -> dict[str, Any]:
+    """Analyze normalized packets and return a JSON-serializable report.
 
     Time windows are fixed-width buckets relative to the first parsed packet.
-    Packet size uses ``len(raw_scapy_packet)`` from the shared parser, in bytes.
+    Packet size comes from each shared ParsedPacket. Records with missing,
+    non-finite, nonnumeric, or unrepresentable timestamps are skipped.
     """
-    capture_path = Path(path)
     if not math.isfinite(window_seconds) or window_seconds <= 0:
         raise ValueError("window_seconds must be a finite number greater than zero")
     if top_n < 0:
         raise ValueError("top_n cannot be negative")
-    try:
-        file_size = capture_path.stat().st_size
-    except OSError as exc:
-        raise PcapReadError(f"Cannot stat capture {capture_path}: {exc}") from exc
 
     protocol_counts: Counter[str] = Counter()
     source_counts: Counter[str] = Counter()
@@ -63,12 +82,13 @@ def analyze_pcap(path: str | Path, window_seconds: float = 1.0, top_n: int = 10)
     min_size: int | None = None
     max_size = 0
 
-    for packet in iter_pcap(capture_path):
-        if not math.isfinite(packet.timestamp):
+    for packet in packets:
+        timestamp = _packet_timestamp(packet)
+        if timestamp is None:
             continue
         if first_time is None:
-            first_time = packet.timestamp
-        last_time = packet.timestamp
+            first_time = timestamp
+        last_time = timestamp
         total_packets += 1
         size = packet.packet_length
         total_bytes += size
@@ -99,7 +119,7 @@ def analyze_pcap(path: str | Path, window_seconds: float = 1.0, top_n: int = 10)
             elif "S" in flags:
                 flag_counts["SYN"] += 1
 
-        window_index = int((packet.timestamp - first_time) // window_seconds)
+        window_index = int((timestamp - first_time) // window_seconds)
         bucket = window_stats.setdefault(window_index, {
             "window_start": first_time + window_index * window_seconds,
             "window_end": first_time + (window_index + 1) * window_seconds,
@@ -166,7 +186,7 @@ def analyze_pcap(path: str | Path, window_seconds: float = 1.0, top_n: int = 10)
             observations.append("A time window included at least 50 unique destination IP addresses.")
 
     return {
-        "file": {"name": capture_path.name, "size_bytes": file_size},
+        "file": {"name": capture_name, "size_bytes": file_size},
         "capture": {
             "start_time": first_time,
             "start_time_iso": _iso_time(first_time),
@@ -205,6 +225,22 @@ def analyze_pcap(path: str | Path, window_seconds: float = 1.0, top_n: int = 10)
         "time_series": time_series,
         "observations": observations,
     }
+
+
+def analyze_pcap(path: str | Path, window_seconds: float = 1.0, top_n: int = 10) -> dict[str, Any]:
+    """Read a capture through Scapy and analyze its normalized packets."""
+    capture_path = Path(path)
+    try:
+        file_size = capture_path.stat().st_size
+    except OSError as exc:
+        raise PcapReadError(f"Cannot stat capture {capture_path}: {exc}") from exc
+    return analyze_packets(
+        iter_pcap(capture_path),
+        window_seconds=window_seconds,
+        top_n=top_n,
+        capture_name=capture_path.name,
+        file_size=file_size,
+    )
 
 
 def write_html_report(report: dict[str, Any], path: str | Path) -> None:
@@ -247,7 +283,7 @@ def main() -> None:
     output = Path(args.output) if args.output else Path(args.path).with_name(f"{Path(args.path).stem}_analysis.json")
     try:
         report = analyze_pcap(args.path, window_seconds=args.window, top_n=args.top)
-        output.write_text(json.dumps(report, indent=2, allow_nan=False), encoding="utf-8")
+        write_json_report(report, output)
         if args.html:
             write_html_report(report, args.html)
     except (PcapReadError, ValueError, OSError) as exc:

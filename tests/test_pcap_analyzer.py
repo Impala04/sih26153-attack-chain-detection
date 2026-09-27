@@ -4,7 +4,7 @@ import sys
 import pytest
 from scapy.all import Ether, ICMP, IP, TCP, UDP, wrpcap
 
-from src.analysis.pcap_analyzer import analyze_pcap, write_html_report
+from src.analysis.pcap_analyzer import analyze_packets, analyze_pcap, write_html_report
 from src.analysis.pcap_analyzer import main as analyzer_main
 from src.capture.packet_schema import ParsedPacket
 
@@ -114,3 +114,31 @@ def test_empty_capture_has_zero_safe_statistics(tmp_path):
     assert report["traffic"]["total_bytes"] == 0
     assert report["traffic"]["average_packets_per_second"] == 0
     assert report["observations"] == ["No supported IPv4 packets were available for analysis."]
+    json.dumps(report, allow_nan=False)
+
+
+def test_packet_analysis_skips_invalid_timestamps_and_missing_metadata():
+    packets = [
+        ParsedPacket(None, "192.0.2.1", "192.0.2.2", "TCP", 60),
+        ParsedPacket(float("nan"), "192.0.2.1", "192.0.2.3", "UDP", 60),
+        ParsedPacket(float("inf"), "192.0.2.1", "192.0.2.4", "ICMP", 60),
+        ParsedPacket("not-a-time", "192.0.2.1", "192.0.2.5", "TCP", 60),
+        ParsedPacket(1e100, "192.0.2.1", "192.0.2.6", "TCP", 60),
+        ParsedPacket(100.0, "192.0.2.1", "192.0.2.2", "TCP", 60),
+        ParsedPacket(100.5, "192.0.2.2", "192.0.2.1", "UDP", 50, None, 53),
+    ]
+
+    report = analyze_packets(packets, window_seconds=1)
+
+    assert report["capture"]["total_packets"] == 2
+    assert report["capture"]["start_time"] == 100.0
+    assert report["capture"]["end_time"] == 100.5
+    assert report["protocols"]["counts"] == {"TCP": 1, "UDP": 1, "ICMP": 0, "OTHER": 0}
+    assert report["ports"]["top_sources"] == []
+    assert report["ports"]["top_destinations"] == [{"value": 53, "packets": 1}]
+    assert all(value == 0 for value in report["tcp_flags"].values())
+    assert report["top_communications"] == [
+        {"src_ip": "192.0.2.1", "dst_ip": "192.0.2.2", "packet_count": 1, "byte_count": 60},
+        {"src_ip": "192.0.2.2", "dst_ip": "192.0.2.1", "packet_count": 1, "byte_count": 50},
+    ]
+    json.dumps(report, allow_nan=False)
