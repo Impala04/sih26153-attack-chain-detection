@@ -1,8 +1,8 @@
 """CyberFlux API with replayable, already-scored traffic Demo Mode.
 
-Run the feature builder and scorer first, then run this API from ``backend``:
-``uvicorn app:app --reload --port 8000``.  By default the replay reads
-``data/host_features_v2_scored.csv``; override it with ``DEMO_DATA_PATH``.
+Run this API from ``backend`` with ``uvicorn app:app --reload --port 8000``.
+By default the replay reads the bundled, compressed scored data at
+``data/host_features_v2_scored.zip``; override it with ``DEMO_DATA_PATH``.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_DATA_PATH = ROOT / "data" / "host_features_v2_scored.csv"
+DEFAULT_DATA_PATH = ROOT / "data" / "host_features_v2_scored.zip"
 SCENARIOS = {"clean": "Clean traffic", "ddos": "DDoS burst", "infiltration": "Subtle infiltration"}
 
 app = FastAPI(title="CyberFlux Demo API")
