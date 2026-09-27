@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import math
 from pathlib import Path
 from typing import Iterator
 
@@ -63,6 +64,9 @@ def iter_pcap(path: str | Path) -> Iterator[ParsedPacket]:
                     continue
                 if parsed is None:
                     logger.debug("Skipping unsupported/non-IPv4 packet %d in %s", packet_number, capture_path)
+                    continue
+                if not math.isfinite(parsed.timestamp):
+                    logger.warning("Skipping packet %d in %s with a non-finite timestamp", packet_number, capture_path)
                     continue
                 if last_timestamp is not None and parsed.timestamp < last_timestamp:
                     raise PcapReadError(

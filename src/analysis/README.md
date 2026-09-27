@@ -39,9 +39,15 @@ Without `--output`, JSON is written beside the input as
 - `time_series`: chronological fixed-width buckets relative to the first
   parsed packet, with packet/byte totals, unique endpoint counts, and per-
   protocol counts.
-- `observations`: currently empty; the report makes no attack determinations.
+- `observations`: deterministic descriptive indicators, including a window at
+  or above 1,000 packets/s, 10,000,000 bytes/s, or 50 unique destinations.
+  Empty supported captures receive a no-supported-packets observation. These
+  are statistical notes and do not make attack determinations.
 
 Packet bytes use `len(raw_scapy_packet)`. Protocol percentages are based on
 parsed IPv4 packets (including IPv4 OTHER). Unsupported/non-IP packets are
 skipped by ingestion and therefore excluded from packet counts. Start/end
 times are null and numeric totals are zero for an empty capture.
+Packets with non-finite timestamps are skipped. The CLI serializes JSON with
+non-finite values disallowed and reports invalid input/output paths as a
+concise command error with a non-zero exit status.
