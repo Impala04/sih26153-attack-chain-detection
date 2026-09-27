@@ -6,6 +6,9 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
+import pytest
+
+pytest.importorskip("torch")
 
 from src.model.train import FEATURE_COLS
 from src.model.train_world_model import train_world_model
