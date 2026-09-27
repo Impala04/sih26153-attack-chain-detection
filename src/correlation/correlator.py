@@ -54,13 +54,16 @@ class AttackChainCorrelator:
 
         chain.events.append(event)
         stage = self.stage_mapper.map_event(event)
-        if stage not in chain.stages:
-            chain.stages.append(stage)
-        chain.current_stage = stage
+        # An "Unknown" stage (unrecognized detection_type) still joins the
+        # chain's event/host history, but must not overwrite a previously
+        # known current_stage or pollute the stage progression list.
+        if stage != "Unknown":
+            if stage not in chain.stages:
+                chain.stages.append(stage)
+            chain.current_stage = stage
         chain.confidence = self._confidence(chain)
         self._event_ids.add(event.event_id)
         return chain
-
     def correlate(self, events: List[DetectionEvent]) -> List[AttackChain]:
         """Correlate events deterministically, independent of input ordering."""
         for event in sorted(events, key=lambda item: (item.timestamp, item.event_id)):

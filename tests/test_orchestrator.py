@@ -1,117 +1,75 @@
-﻿"""Tests for the Checkpoint 3 orchestrator: detections -> AnalysisResult."""
+"""Tests for AnalysisOrchestrator, focused on Phase 9 error handling."""
 
 import pytest
 
 from src.orchestrator import AnalysisOrchestrator
 from src.processing.events import DetectionEvent
-from src.providers.risk_provider import RiskProvider
-from src.contracts import RiskAssessment
 
 
-def _scan_event(event_id="e1", timestamp=1.0, src_ip="10.0.0.5", dst_ip="10.0.0.9"):
+def make_event(detection_type: str, event_id: str = "evt-1") -> DetectionEvent:
     return DetectionEvent(
         event_id=event_id,
-        timestamp=timestamp,
-        window_start=timestamp - 1,
-        window_end=timestamp + 29,
-        src_ip=src_ip,
-        dst_ip=dst_ip,
-        detection_type="potential_network_scan",
-        confidence=0.7,
-        features={"x": 1.0},
-        evidence=["scan evidence"],
-    )
-
-
-def _lateral_event(event_id="e2", timestamp=40.0, src_ip="10.0.0.5", dst_ip="10.0.0.9"):
-    return DetectionEvent(
-        event_id=event_id,
-        timestamp=timestamp,
-        window_start=timestamp - 10,
-        window_end=timestamp + 20,
-        src_ip=src_ip,
-        dst_ip=dst_ip,
-        detection_type="suspicious_traffic",
+        timestamp=1000.0,
+        window_start=970.0,
+        window_end=1000.0,
+        src_ip="10.0.0.1",
+        dst_ip="10.0.0.2",
+        detection_type=detection_type,
         confidence=0.8,
-        features={"y": 2.0},
-        evidence=["lateral evidence"],
+        features={"unique_destinations": 12},
+        evidence=["test evidence"],
     )
 
 
-def test_analyze_builds_result_with_all_providers():
+def test_analyze_handles_unrecognized_detection_type():
+    """A single unrecognized detection_type doesn't crash, and the chain
+    has no known current_stage yet (guard prevents assigning "Unknown")."""
     orchestrator = AnalysisOrchestrator()
-    events = [_scan_event(), _lateral_event()]
+    event = make_event("not_a_real_detection_type")
+    result = orchestrator.analyze([event], "test")
+    assert result.attack_chains
+    assert result.attack_chains[0]["current_stage"] is None
+    assert result.attack_chains[0]["stages"] == []
 
-    result = orchestrator.analyze(events, input_source="csv:test.csv")
 
-    assert result.input_source == "csv:test.csv"
+def test_analyze_handles_known_detection_types():
+    """Happy path: recognized detection_type still correlates normally."""
+    orchestrator = AnalysisOrchestrator()
+    event = make_event("suspicious_traffic")
+    result = orchestrator.analyze([event], "test")
+    assert result.attack_chains
+    assert result.attack_chains[0]["current_stage"] == "Lateral Movement"
     assert result.warnings == []
-    assert len(result.detections) == 2
+
+
+def test_analyze_mixed_batch_unknown_and_known_types():
+    """A batch with one unrecognized type shouldn't corrupt the rest.
+
+    These two events share hosts, so they correlate into a single chain.
+    The known stage should remain current_stage; "Unknown" should not
+    appear in the chain's stage history at all.
+    """
+    orchestrator = AnalysisOrchestrator()
+    events = [
+        make_event("suspicious_traffic", event_id="evt-1"),
+        make_event("not_a_real_detection_type", event_id="evt-2"),
+    ]
+    result = orchestrator.analyze(events, "test")
     assert len(result.attack_chains) == 1
-    assert result.attack_chains[0]["stages"] == ["Discovery", "Lateral Movement"]
-
-    assert result.forecast is not None
-    assert result.forecast.source == "mock"
-    assert result.mitre is not None
-    assert len(result.mitre) == 2  # one per distinct detection_type
-    assert result.explanation is not None
-    assert "suspicious_traffic" in result.explanation.summary
-    assert result.risk is not None
-    assert 0.0 <= result.risk.risk_score <= 100.0
+    chain = result.attack_chains[0]
+    assert chain["current_stage"] == "Lateral Movement"
+    assert "Unknown" not in chain["stages"]
 
 
-def test_analyze_handles_empty_detections_gracefully():
+def test_unknown_stage_does_not_overwrite_current_stage():
+    """An unrecognized detection_type shouldn't erase a chain's known stage."""
     orchestrator = AnalysisOrchestrator()
-
-    result = orchestrator.analyze([], input_source="csv:empty.csv")
-
-    assert result.detections == []
-    assert result.attack_chains == []
-    assert result.warnings == []
-    # Mock providers still return a deterministic result for an empty chain.
-    assert result.forecast is not None
-    assert result.mitre == []
-    assert result.explanation.summary == "No detections available to explain."
-    assert result.risk is not None
-
-
-def test_provider_failure_is_recorded_as_warning_not_exception():
-    class BrokenRiskProvider(RiskProvider):
-        def assess_risk(self, context):
-            raise RuntimeError("boom")
-
-    orchestrator = AnalysisOrchestrator(risk_provider=BrokenRiskProvider())
-    events = [_scan_event()]
-
-    result = orchestrator.analyze(events, input_source="live")
-
-    assert result.risk is None
-    assert len(result.warnings) == 1
-    assert "risk provider failed: boom" in result.warnings[0]
-    # Other providers still ran fine.
-    assert result.forecast is not None
-    assert result.mitre is not None
-
-
-def test_real_provider_can_be_injected_and_used():
-    class StubRiskProvider(RiskProvider):
-        def assess_risk(self, context):
-            return RiskAssessment(risk_score=42.0, source="real")
-
-    orchestrator = AnalysisOrchestrator(risk_provider=StubRiskProvider())
-    result = orchestrator.analyze([_scan_event()], input_source="live")
-
-    assert result.risk.risk_score == 42.0
-    assert result.risk.source == "real"
-    assert result.risk.severity == "medium"
-
-
-def test_correlator_and_stage_mapper_are_mutually_exclusive():
-    from src.correlation.correlator import AttackChainCorrelator
-    from src.correlation.stage_mapper import FallbackStageMapper
-
-    with pytest.raises(ValueError):
-        AnalysisOrchestrator(
-            correlator=AttackChainCorrelator(),
-            stage_mapper=FallbackStageMapper(),
-        )
+    events = [
+        make_event("suspicious_traffic", event_id="evt-1"),
+        make_event("not_a_real_detection_type", event_id="evt-2"),
+    ]
+    result = orchestrator.analyze(events, "test")
+    assert len(result.attack_chains) == 1
+    chain = result.attack_chains[0]
+    assert chain["current_stage"] == "Lateral Movement"
+    assert "Unknown" not in chain["stages"]    

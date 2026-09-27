@@ -27,6 +27,12 @@ class FallbackStageMapper(StageMapper):
         "suspicious_traffic": "Lateral Movement",
     }
 
+    
     def map_event(self, event: DetectionEvent) -> str:
-        """Return the temporary stage label for a known detection type."""
-        return self._STAGES[event.detection_type]
+        """Return the temporary stage label for a known detection type.
+
+        Falls back to "Unknown" for any detection_type not yet in
+        _STAGES, so an unrecognized event degrades correlation instead
+        of raising KeyError and taking down the whole orchestrator.
+        """
+        return self._STAGES.get(event.detection_type, "Unknown")
