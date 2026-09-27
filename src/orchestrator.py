@@ -1,4 +1,4 @@
-﻿"""Checkpoint 3: orchestrates detection events into a single AnalysisResult.
+"""Checkpoint 3: orchestrates detection events into a single AnalysisResult.
 
 This is the missing link between:
 
@@ -18,7 +18,8 @@ from __future__ import annotations
 
 import time
 import uuid
-from typing import Any, Dict, List, Optional
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
 
 from src.contracts import AnalysisResult
 from src.correlation.attack_chain import AttackChain
@@ -161,3 +162,40 @@ class AnalysisOrchestrator:
         except Exception as exc:  # noqa: BLE001 - providers are third-party-ish
             warnings.append(f"{label} provider failed: {exc}")
             return None
+def run_analysis(
+    input_path: Union[str, Path],
+    orchestrator: Optional[AnalysisOrchestrator] = None,
+) -> AnalysisResult:
+    """Single entry point: load detections from a file and produce an AnalysisResult.
+
+    Dispatches on file extension:
+      - .csv  -> src.ingestion.csv_adapter.build_events_from_csv
+      - .pcap/.pcapng -> not yet wired to the detection pipeline; raises
+        NotImplementedError until feature/pcap-ingestion-analysis's PCAP
+        module is merged and a matching adapter exists here.
+
+    ``orchestrator`` can be supplied for testing (e.g. with mock providers
+    already configured); defaults to a fresh AnalysisOrchestrator() otherwise.
+    """
+    path = Path(input_path)
+    if not path.is_file():
+        raise FileNotFoundError(f"Input file does not exist or is not a file: {path}")
+
+    suffix = path.suffix.lower()
+    orchestrator = orchestrator or AnalysisOrchestrator()
+
+    if suffix == ".csv":
+        from src.ingestion.csv_adapter import build_events_from_csv
+
+        detections = build_events_from_csv(str(path))
+        return orchestrator.analyze(detections, input_source=f"csv:{path.name}")
+
+    if suffix in {".pcap", ".pcapng"}:
+        raise NotImplementedError(
+            "PCAP input is not yet wired into run_analysis. "
+            "Waiting on feature/pcap-ingestion-analysis to merge a "
+            "PCAP -> DetectionEvent adapter (via FlowTracker/WindowManager/"
+            "FeatureExtractor/DetectionEngine)."
+        )
+
+    raise ValueError(f"Unsupported input file type: {suffix or '(no extension)'}")
