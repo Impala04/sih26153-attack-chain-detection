@@ -1,29 +1,27 @@
 """
-score.py — Score new/incoming data with the pre-trained NetGuard model.
+Score incoming windows with the pre-trained IsolationForest model.
 
-This is what the live sniffer, demo replay, and PCAP-upload paths will all
-call (Phase 2) so every intake method produces identical output shapes.
-
-Usage:
-    python src/model/score.py --input data/new_windows.csv --out data/scored.csv
-
-    # Or import and call directly from the FastAPI backend / live pipeline:
-    from src.model.score import score_dataframe
-    scored_df = score_dataframe(raw_df)
+For a small selected set, pass ``explain_limit`` and the saved training
+reference baseline is used for real local feature ablation explanations.
 """
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 import joblib
 import pandas as pd
 
-from train import (
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from src.explainability import explain_prediction
+from src.model.train import (
     add_lateral_move_flag,
     compute_anomaly_risk,
     compute_risk_score,
-    generate_explanation,
     LATERAL_MOVE_THRESHOLD,
 )
 
@@ -33,17 +31,26 @@ DEFAULT_MODEL_PATH = "models/isolation_forest.joblib"
 def load_model_and_features(model_path: str = DEFAULT_MODEL_PATH):
     model = joblib.load(model_path)
     meta_path = str(Path(model_path).with_suffix(".meta.json"))
-    with open(meta_path) as f:
+    with open(meta_path, encoding="utf-8") as f:
         meta = json.load(f)
     return model, meta["feature_cols"]
 
 
-def score_dataframe(df: pd.DataFrame, model_path: str = DEFAULT_MODEL_PATH) -> pd.DataFrame:
-    """Score a dataframe of windowed host features. Expects the same raw
-    columns as training data MINUS anomaly_score/anomaly_risk/etc (those
-    get computed here). lateral_move_flag will be added automatically if
-    missing, so callers (live sniffer, demo mode, PCAP parser) don't each
-    need to reimplement that logic."""
+def score_dataframe(
+    df: pd.DataFrame,
+    model_path: str = DEFAULT_MODEL_PATH,
+    *,
+    explain_limit: int = 0,
+    explanation_top_k: int = 5,
+) -> pd.DataFrame:
+    """Score host-window rows; optionally explain only the first selected rows.
+
+    Set ``explain_limit`` to a small positive count to attach JSON explanation
+    strings. Explanations use local single-feature ablation against training
+    feature medians stored in model metadata.
+    """
+    if explain_limit < 0:
+        raise ValueError("explain_limit cannot be negative")
     model, feature_cols = load_model_and_features(model_path)
     df = df.copy()
 
@@ -54,30 +61,46 @@ def score_dataframe(df: pd.DataFrame, model_path: str = DEFAULT_MODEL_PATH) -> p
     if missing:
         raise ValueError(
             f"Input data is missing columns the model expects: {missing}. "
-            f"Check that upstream feature extraction (live sniffer / demo / "
-            f"PCAP parser) matches the training schema exactly."
+            "Check upstream feature extraction against the training schema."
         )
 
     X = df[feature_cols]
     df["anomaly_score"] = model.predict(X)
     df["anomaly_score_raw"] = model.decision_function(X)
-
     df = compute_anomaly_risk(df)
-    df = compute_risk_score(df)  # no-op if attack_flow_ratio isn't present (e.g. live data)
-    df["explanation"] = df.apply(generate_explanation, axis=1)
+    df = compute_risk_score(df)
+    df["explanation"] = None
 
+    if explain_limit:
+        meta_path = Path(model_path).with_suffix(".meta.json")
+        with meta_path.open(encoding="utf-8") as f:
+            baseline = json.load(f).get("reference_features")
+        if baseline is None:
+            raise ValueError("Model metadata has no reference_features baseline; retrain to enable explanations")
+        selected = min(explain_limit, len(df))
+        for position in range(selected):
+            row = df.iloc[position][feature_cols]
+            result = explain_prediction(
+                model,
+                row.to_dict(),
+                prediction=float(-df.iloc[position]["anomaly_score_raw"]),
+                top_k=explanation_top_k,
+                baseline=baseline,
+            )
+            df.iat[position, df.columns.get_loc("explanation")] = json.dumps(result, allow_nan=False)
     return df
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Score new data with the trained NetGuard model")
+    parser = argparse.ArgumentParser(description="Score new data with the trained CyberFlux model")
     parser.add_argument("--input", required=True)
     parser.add_argument("--out", required=True)
     parser.add_argument("--model", default=DEFAULT_MODEL_PATH)
+    parser.add_argument("--explain-limit", type=int, default=0)
     args = parser.parse_args()
 
     raw_df = pd.read_csv(args.input)
-    scored = score_dataframe(raw_df, model_path=args.model)
+    scored = score_dataframe(raw_df, model_path=args.model, explain_limit=args.explain_limit)
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     scored.to_csv(args.out, index=False)
     print(f"Scored {scored.shape[0]} rows -> {args.out}")

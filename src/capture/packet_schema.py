@@ -1,15 +1,4 @@
-"""
-packet_schema.py — Shared ParsedPacket contract.
-
-This is the single interface between the capture/ingestion layer (this
-branch, feature/live-capture) and Aaron's flow-tracking/feature/detection
-pipeline. Both live capture and (later) PCAP replay must produce this same
-shape so downstream code never needs to know which source a packet came
-from.
-
-Do not add detection/scoring fields here — this is a normalized packet
-record only, one level above raw bytes.
-"""
+"""Shared ParsedPacket contract between capture, replay, and analysis."""
 
 from dataclasses import dataclass
 from typing import Optional
@@ -17,17 +6,21 @@ from typing import Optional
 
 @dataclass
 class ParsedPacket:
-    timestamp: float  # unix epoch seconds (float, sub-second precision)
+    """Normalized packet metadata; no raw Scapy objects cross this boundary."""
+
+    timestamp: float
     src_ip: str
     dst_ip: str
-    protocol: str  # "TCP" | "UDP" | "ICMP" | "OTHER"
+    protocol: str
     packet_length: int
-
-    # Not every protocol has ports/flags — these are None when not
-    # applicable (e.g. ICMP has no ports; UDP has no TCP flags).
     src_port: Optional[int] = None
     dst_port: Optional[int] = None
     tcp_flags: Optional[str] = None
+    ttl: Optional[int] = None
+    tcp_window: Optional[int] = None
+    fragmented: Optional[bool] = None
+    payload_size: Optional[int] = None
+    tcp_seq: Optional[int] = None
 
     def to_dict(self) -> dict:
         return {
@@ -39,4 +32,9 @@ class ParsedPacket:
             "protocol": self.protocol,
             "packet_length": self.packet_length,
             "tcp_flags": self.tcp_flags,
+            "ttl": self.ttl,
+            "tcp_window": self.tcp_window,
+            "fragmented": self.fragmented,
+            "payload_size": self.payload_size,
+            "tcp_seq": self.tcp_seq,
         }

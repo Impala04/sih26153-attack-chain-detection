@@ -7,6 +7,8 @@ Run the feature builder and scorer first, then run this API from ``backend``:
 
 from __future__ import annotations
 
+import json
+import math
 import os
 import time
 from dataclasses import dataclass, field
@@ -46,12 +48,65 @@ def severity(value: float) -> str:
 
 
 def features(row: pd.Series) -> list[dict[str, Any]]:
-    text = str(row.get("_explanation", ""))
-    if text and text != "nan":
-        return [{"feature": part.strip(), "impact": .2, "direction": "increases risk"} for part in text.split(";")[:5]]
+    text = row.get("_explanation", "")
+    text = text.strip() if isinstance(text, str) else ""
+    if text and text.lower() != "nan":
+        looks_structured = text.startswith(("{", "["))
+        try:
+            explanation = json.loads(text)
+            looks_structured = True
+        except json.JSONDecodeError:
+            explanation = None
+
+        if looks_structured:
+            if isinstance(explanation, dict) and explanation.get("status") == "available":
+                items = []
+                top_features = explanation.get("top_features")
+                if not isinstance(top_features, list):
+                    top_features = []
+                for item in top_features:
+                    if not isinstance(item, dict):
+                        continue
+                    name = item.get("feature")
+                    contribution = item.get("contribution", item.get("impact"))
+                    if (
+                        not isinstance(name, str)
+                        or not name.strip()
+                        or isinstance(contribution, bool)
+                        or not isinstance(contribution, (int, float))
+                    ):
+                        continue
+                    try:
+                        contribution = float(contribution)
+                    except (OverflowError, ValueError):
+                        continue
+                    if not math.isfinite(contribution):
+                        continue
+                    direction = (
+                        "increases risk" if contribution > 0
+                        else "decreases risk" if contribution < 0
+                        else "neutral"
+                    )
+                    items.append({
+                        "feature": name,
+                        "impact": contribution,
+                        "direction": direction,
+                    })
+                    if len(items) == 5:
+                        break
+                if items:
+                    return items
+        else:
+            # Preserve the prior semicolon-separated explanation format.
+            parts = [part.strip() for part in text.split(";") if part.strip()]
+            if parts:
+                return [
+                    {"feature": part, "impact": .2, "direction": "increases risk"}
+                    for part in parts[:5]
+                ]
+
     names = [("connection_count", "connection volume"), ("unique_ports", "distinct ports"), ("flows_per_second", "flows per second"), ("bytes_per_connection", "bytes per connection")]
     return [{"feature": label, "impact": .2, "direction": "increases risk"} for key, label in names if pd.notna(row.get(key)) and float(row.get(key, 0)) > 0]
-
 
 @dataclass
 class Replay:
