@@ -52,8 +52,14 @@ CyberFlux supports network flows and packet-level traffic data including CIC-IDS
 ## Roadmap
 
 * Live packets monitoring
-* PCAP analysis
+* PCAP/PCAPNG packet ingestion for investigation (separate from detection)
 * MITRE ATT&CK mapping
 * Temporal attacks forecasting
 * Explainable predictions
 * Real-time SOC dashboard
+
+PCAP uploads accept `.pcap`, `.pcapng`, and `.cap` files through
+`POST /api/pcap/parse` as multipart form data under the `file` field. The API
+returns normalized IPv4 TCP, UDP, and ICMP packet metadata, capped at 10,000
+records per response. Install `requirements-pcap.txt` to enable Scapy parsing
+and multipart uploads.

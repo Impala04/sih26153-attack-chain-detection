@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -26,6 +26,10 @@ SCENARIOS = {"clean": "Clean traffic", "ddos": "DDoS burst", "infiltration": "Su
 
 app = FastAPI(title="CyberFlux Demo API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+MAX_PCAP_UPLOAD_BYTES = 100 * 1024 * 1024
+MAX_PCAP_RESPONSE_PACKETS = 10_000
+PCAP_SUFFIXES = {".pcap", ".pcapng", ".cap"}
 
 
 def column(frame: pd.DataFrame, *names: str) -> str | None:
@@ -285,3 +289,58 @@ def get_explanation(host_id: str):
 @app.get("/")
 def root():
     return {"status": "ok", "demo": replay.status()}
+
+
+@app.post("/api/pcap/parse")
+async def parse_pcap_upload(file: UploadFile = File(...)):
+    """Parse an uploaded capture without feeding it into the detection pipeline."""
+    import sys
+    import tempfile
+
+    # The documented launch command runs Uvicorn from ``backend/``, so expose
+    # the repository root when this route imports the shared capture reader.
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
+    from src.ingestion.pcap_reader import PcapReadError, iter_pcap
+
+    filename = Path(file.filename or "capture.pcap").name
+    suffix = Path(filename).suffix.lower()
+    if suffix not in PCAP_SUFFIXES:
+        await file.close()
+        raise HTTPException(415, "Upload a .pcap, .pcapng, or .cap capture")
+
+    temp_path: Path | None = None
+    size = 0
+    try:
+        with tempfile.NamedTemporaryFile(prefix="cyberflux-", suffix=suffix, delete=False) as temp_file:
+            temp_path = Path(temp_file.name)
+            while chunk := await file.read(1024 * 1024):
+                size += len(chunk)
+                if size > MAX_PCAP_UPLOAD_BYTES:
+                    raise HTTPException(413, "Capture exceeds the 100 MB upload limit")
+                temp_file.write(chunk)
+
+        if size == 0:
+            raise HTTPException(400, "The capture file is empty")
+
+        packets = []
+        truncated = False
+        try:
+            for packet in iter_pcap(temp_path):
+                if len(packets) == MAX_PCAP_RESPONSE_PACKETS:
+                    truncated = True
+                    break
+                packets.append(packet.to_dict())
+        except PcapReadError as exc:
+            raise HTTPException(400, str(exc)) from exc
+
+        return {
+            "filename": filename,
+            "packet_count": len(packets),
+            "truncated": truncated,
+            "packets": packets,
+        }
+    finally:
+        await file.close()
+        if temp_path is not None:
+            temp_path.unlink(missing_ok=True)

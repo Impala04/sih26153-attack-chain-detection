@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 from scapy.all import ARP, Ether, ICMP, IP, Raw, TCP, UDP, IPv6, wrpcap
+from scapy.utils import PcapNgWriter
 
 from src.capture.packet_schema import ParsedPacket
 from src.ingestion import pcap_reader
@@ -21,6 +22,17 @@ def stamp(packet, timestamp):
 
 def frame(packet):
     return Ether(src="02:00:00:00:00:01", dst="02:00:00:00:00:02") / packet
+
+
+def pcapng_capture(tmp_path: Path, packets) -> Path:
+    path = tmp_path / "sample.pcapng"
+    writer = PcapNgWriter(str(path))
+    try:
+        for packet in packets:
+            writer.write(packet)
+    finally:
+        writer.close()
+    return path
 
 
 def test_tcp_fields_and_timestamp(tmp_path):
@@ -50,8 +62,14 @@ def test_udp_icmp_and_unsupported_are_handled(tmp_path):
 
 
 def test_pcapng_supported(tmp_path):
-    packets = [stamp(frame(IP() / UDP()), 5)]
-    assert len(list(iter_pcap(capture(tmp_path, packets, ".pcapng")))) == 1
+    raw = stamp(frame(IP(src="10.0.0.3", dst="10.0.0.4") / UDP(sport=53000, dport=53)), 5)
+    path = pcapng_capture(tmp_path, [raw])
+    assert path.read_bytes().startswith(bytes.fromhex("0a0d0d0a"))
+    parsed, = list(iter_pcap(path))
+    assert (parsed.src_ip, parsed.dst_ip, parsed.protocol) == ("10.0.0.3", "10.0.0.4", "UDP")
+    assert (parsed.src_port, parsed.dst_port) == (53000, 53)
+    assert parsed.timestamp == pytest.approx(5)
+    assert parsed.packet_length == len(raw)
 
 
 def test_empty_and_invalid_path(tmp_path):
@@ -62,6 +80,10 @@ def test_empty_and_invalid_path(tmp_path):
         list(iter_pcap(tmp_path / "missing.pcap"))
     with pytest.raises(PcapReadError, match="Unsupported capture format"):
         list(iter_pcap(tmp_path / "capture.txt"))
+
+    cap_file = capture(tmp_path, [stamp(frame(IP() / UDP(sport=53)), 5)], ".cap")
+    parsed, = list(iter_pcap(cap_file))
+    assert parsed.protocol == "UDP"
 
 
 def test_timestamp_order_and_equal_timestamps(tmp_path):
@@ -77,6 +99,27 @@ def test_malformed_capture_fails_cleanly(tmp_path):
     path.write_bytes(b"not a pcap")
     with pytest.raises(PcapReadError):
         list(iter_pcap(path))
+
+
+def test_malformed_packet_is_skipped_and_reading_continues(tmp_path, monkeypatch):
+    packets = [
+        stamp(frame(IP() / UDP(sport=1000, dport=53)), 1),
+        stamp(frame(IP() / TCP(sport=2000, dport=443, flags="S")), 2),
+    ]
+    path = capture(tmp_path, packets)
+    original_parse_packet = pcap_reader.parse_packet
+    packet_number = 0
+
+    def parse_with_corrupt_record(raw_packet):
+        nonlocal packet_number
+        packet_number += 1
+        if packet_number == 1:
+            raise ValueError("malformed packet")
+        return original_parse_packet(raw_packet)
+
+    monkeypatch.setattr(pcap_reader, "parse_packet", parse_with_corrupt_record)
+    parsed, = list(iter_pcap(path))
+    assert parsed.protocol == "TCP"
 
 
 def test_non_finite_timestamp_is_skipped(tmp_path, monkeypatch):
