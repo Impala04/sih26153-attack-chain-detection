@@ -4,6 +4,7 @@ import pytest
 from scapy.all import ARP, Ether, ICMP, IP, Raw, TCP, UDP, IPv6, wrpcap
 
 from src.capture.packet_schema import ParsedPacket
+from src.ingestion import pcap_reader
 from src.ingestion.pcap_reader import PcapReadError, iter_pcap
 
 
@@ -76,6 +77,13 @@ def test_malformed_capture_fails_cleanly(tmp_path):
     path.write_bytes(b"not a pcap")
     with pytest.raises(PcapReadError):
         list(iter_pcap(path))
+
+
+def test_non_finite_timestamp_is_skipped(tmp_path, monkeypatch):
+    path = capture(tmp_path, [stamp(frame(IP() / UDP()), 1)])
+    malformed = ParsedPacket(float("nan"), "10.0.0.1", "10.0.0.2", "UDP", 42, 1, 2)
+    monkeypatch.setattr(pcap_reader, "parse_packet", lambda _packet: malformed)
+    assert list(iter_pcap(path)) == []
 
 
 def test_committed_synthetic_fixtures_are_readable():
