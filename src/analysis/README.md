@@ -19,14 +19,20 @@ Install dependencies with `pip install -r requirements-pcap.txt`, then from the
 repository root:
 
 ```bash
-python -m src.analysis.pcap_analyzer capture.pcap --output reports/capture.json
-python -m src.analysis.pcap_analyzer capture.pcapng --output reports/capture.json --html reports/capture.html --window 5
+python -m src.analysis.pcap_cli capture.pcap
+python -m src.analysis.pcap_cli capture.pcapng --output reports/capture.json --html reports/capture.html --window 5
 ```
+
+The standalone CLI runs from the repository root and does not start or call the
+application backend. It writes `<capture>_analysis.json` beside the input by
+default; use `--output`/`-o` to select a JSON path. `--html` optionally writes
+the standalone HTML report.
 
 `--window` sets fixed-width time-series buckets in seconds (default 1), and
 `--top` sets the number of top IPs, ports, and communications (default 10).
-Without `--output`, JSON is written beside the input as
-`<capture>_analysis.json`.
+The optional HTML report is self-contained and includes packet count,
+protocol/IP/port/TCP flag summaries, aggregate and per-window packet/byte
+rates, communication pairs, and time-window statistics.
 
 ## JSON report schema
 

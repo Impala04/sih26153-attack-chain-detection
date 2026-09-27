@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import argparse
-import json
 import math
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
@@ -12,7 +10,6 @@ from typing import Any, Iterable
 
 from src.capture.packet_schema import ParsedPacket
 from src.ingestion.pcap_reader import PcapReadError, iter_pcap
-from src.analysis.pcap_json_report import write_json_report
 
 SERVICE_PORTS = (22, 53, 80, 443, 445, 3389, 8080)
 PROTOCOLS = ("TCP", "UDP", "ICMP", "OTHER")
@@ -244,54 +241,118 @@ def analyze_pcap(path: str | Path, window_seconds: float = 1.0, top_n: int = 10)
 
 
 def write_html_report(report: dict[str, Any], path: str | Path) -> None:
-    """Write a lightweight, self-contained HTML summary with a packet-rate chart."""
+    """Write a readable, self-contained HTML investigation report."""
     import html
 
-    series = report["time_series"]
-    values = [item["packet_count"] / report["capture"]["time_series_window_seconds"] for item in series]
-    labels = [item["window_start_iso"] for item in series]
-    table_rows = "".join(f"<tr><td>{html.escape(str(label))}</td><td>{value}</td></tr>" for label, value in zip(labels, values))
-    def ranked_rows(items):
-        return "".join(
-            f"<tr><td>{html.escape(str(item['value']))}</td><td>{item['packets']}</td></tr>"
-            for item in items
-        )
+    def escape(value: Any) -> str:
+        return "—" if value is None else html.escape(str(value), quote=True)
 
-    protocol = report["protocols"]["distribution_percent"]
-    title = html.escape(report["file"]["name"])
-    document = f"""<!doctype html><html><head><meta charset="utf-8"><title>PCAP analysis: {title}</title>
-<style>body{{font:15px system-ui;max-width:1000px;margin:2rem auto;padding:0 1rem;color:#182230}}.cards{{display:flex;gap:1rem;flex-wrap:wrap}}.card{{background:#f1f5f9;padding:1rem;border-radius:8px}}table{{border-collapse:collapse;width:100%}}td,th{{padding:.45rem;border-bottom:1px solid #ddd;text-align:left}}canvas{{max-width:100%;height:260px}}</style></head><body>
-<h1>PCAP investigation: {title}</h1><div class="cards"><div class="card">Packets: {report['capture']['total_packets']}</div><div class="card">Duration: {report['capture']['duration_seconds']:.3f}s</div><div class="card">Bytes: {report['traffic']['total_bytes']}</div><div class="card">Average packets/s: {report['traffic']['average_packets_per_second']}</div></div>
-<h2>Protocol distribution</h2><table><tr><th>Protocol</th><th>Percent</th></tr>{''.join(f'<tr><td>{k}</td><td>{v}%</td></tr>' for k,v in protocol.items())}</table>
-<h2>Top source IPs</h2><table><tr><th>IP</th><th>Packets</th></tr>{ranked_rows(report['ips']['top_sources'])}</table>
-<h2>Top destination IPs</h2><table><tr><th>IP</th><th>Packets</th></tr>{ranked_rows(report['ips']['top_destinations'])}</table>
-<h2>Top source ports</h2><table><tr><th>Port</th><th>Packets</th></tr>{ranked_rows(report['ports']['top_sources'])}</table>
-<h2>Top destination ports</h2><table><tr><th>Port</th><th>Packets</th></tr>{ranked_rows(report['ports']['top_destinations'])}</table>
-<h2>Traffic over time</h2><canvas id="chart" width="950" height="260"></canvas><table><tr><th>Window start (UTC)</th><th>Packets per second</th></tr>{table_rows}</table>
-<script>const values={json.dumps(values, allow_nan=False)};const c=document.getElementById('chart'),x=c.getContext('2d'),m=Math.max(1,...values),w=c.width,h=c.height;x.beginPath();x.strokeStyle='#2563eb';values.forEach((v,i)=>{{const px=20+i*(w-40)/Math.max(1,values.length-1),py=h-20-v/m*(h-40);i?x.lineTo(px,py):x.moveTo(px,py)}});x.stroke();</script></body></html>"""
+    def table(headers: tuple[str, ...], rows: list[tuple[Any, ...]]) -> str:
+        heading = "".join(f"<th scope=\"col\">{escape(label)}</th>" for label in headers)
+        if rows:
+            body = "".join(
+                "<tr>" + "".join(f"<td>{escape(value)}</td>" for value in row) + "</tr>"
+                for row in rows
+            )
+        else:
+            body = f'<tr><td class="empty" colspan="{len(headers)}">No data available.</td></tr>'
+        return f"<div class=\"table-wrap\"><table><thead><tr>{heading}</tr></thead><tbody>{body}</tbody></table></div>"
+
+    capture = report["capture"]
+    traffic = report["traffic"]
+    protocols = report["protocols"]
+    ips = report["ips"]
+    ports = report["ports"]
+    title = escape(report["file"]["name"])
+    cards = (
+        ("Packet count", capture["total_packets"]),
+        ("Duration", f"{capture['duration_seconds']:.3f} s"),
+        ("Total bytes", traffic["total_bytes"]),
+        ("Average packets / second", traffic["average_packets_per_second"]),
+        ("Average bytes / second", traffic["average_bytes_per_second"]),
+    )
+    summary_cards = "".join(
+        f"<div class=\"card\"><span>{escape(label)}</span><strong>{escape(value)}</strong></div>"
+        for label, value in cards
+    )
+
+    protocol_rows = [
+        (protocol, protocols["counts"].get(protocol, 0), f"{protocols['distribution_percent'].get(protocol, 0)}%")
+        for protocol in PROTOCOLS
+    ]
+    ip_summary_rows = [
+        ("Unique source IPs", ips["unique_source_ips"]),
+        ("Unique destination IPs", ips["unique_destination_ips"]),
+        ("Unique communicating pairs", ips["unique_communicating_pairs"]),
+    ]
+    ip_rows = table(("Statistic", "Count"), ip_summary_rows)
+    source_ip_rows = table(
+        ("Source IP", "Packets"),
+        [(item["value"], item["packets"]) for item in ips["top_sources"]],
+    )
+    destination_ip_rows = table(
+        ("Destination IP", "Packets"),
+        [(item["value"], item["packets"]) for item in ips["top_destinations"]],
+    )
+    source_port_rows = table(
+        ("Source port", "Packets"),
+        [(item["value"], item["packets"]) for item in ports["top_sources"]],
+    )
+    destination_port_rows = table(
+        ("Destination port", "Packets"),
+        [(item["value"], item["packets"]) for item in ports["top_destinations"]],
+    )
+    service_port_rows = table(
+        ("Service port", "Source packets", "Destination packets"),
+        [
+            (port, values["source_packets"], values["destination_packets"])
+            for port, values in ports["common_service_ports"].items()
+        ],
+    )
+    flag_rows = table(("TCP flag", "Packets"), list(report["tcp_flags"].items()))
+    communication_rows = table(
+        ("Source IP", "Destination IP", "Packets", "Bytes"),
+        [
+            (item["src_ip"], item["dst_ip"], item["packet_count"], item["byte_count"])
+            for item in report["top_communications"]
+        ],
+    )
+    window_seconds = capture["time_series_window_seconds"]
+    window_rows = table(
+        (
+            "Window start (UTC)", "Packets", "Bytes", "Packets / second", "Bytes / second",
+            "Unique sources", "Unique destinations", "TCP", "UDP", "ICMP", "Other",
+        ),
+        [
+            (
+                item["window_start_iso"], item["packet_count"], item["byte_count"],
+                round(item["packet_count"] / window_seconds, 4),
+                round(item["byte_count"] / window_seconds, 4),
+                item["unique_source_ips"], item["unique_destination_ips"],
+                item["tcp_count"], item["udp_count"], item["icmp_count"], item["other_count"],
+            )
+            for item in report["time_series"]
+        ],
+    )
+
+    document = f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PCAP investigation: {title}</title>
+<style>
+:root{{color-scheme:light;--ink:#182230;--muted:#5c6878;--line:#d8e0e8;--panel:#f3f6f9;--accent:#245a83}}
+*{{box-sizing:border-box}}body{{font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;max-width:1180px;margin:2rem auto;padding:0 1rem;color:var(--ink)}}
+h1{{font-size:1.75rem;margin:0 0 .3rem}}h2{{font-size:1.2rem;margin:1.7rem 0 .65rem}}h3{{font-size:1rem;margin:1rem 0 .5rem}}.subtitle{{color:var(--muted);margin:0 0 1.4rem}}
+.cards{{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.7rem}}.card{{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:.85rem;display:flex;flex-direction:column;gap:.2rem}}.card span{{color:var(--muted);font-size:.8rem}}.card strong{{font-size:1.15rem;font-variant-numeric:tabular-nums}}
+.split{{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:1rem}}.table-wrap{{overflow-x:auto;border:1px solid var(--line);border-radius:7px;margin:.45rem 0 1rem}}table{{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}}th,td{{padding:.5rem .65rem;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}}th{{background:var(--panel);font-size:.78rem;color:#334155}}tbody tr:last-child td{{border-bottom:0}}.empty{{color:var(--muted);text-align:center}}@media print{{body{{margin:0;max-width:none}}}}
+</style></head><body>
+<h1>PCAP investigation report</h1><p class="subtitle">{title}</p>
+<div class="cards">{summary_cards}</div>
+<h2>Protocol statistics</h2>{table(("Protocol", "Packets", "Share"), protocol_rows)}
+<h2>IP statistics</h2>{ip_rows}<div class="split"><section><h3>Top source IPs</h3>{source_ip_rows}</section><section><h3>Top destination IPs</h3>{destination_ip_rows}</section></div>
+<h2>Port statistics</h2><div class="split"><section><h3>Top source ports</h3>{source_port_rows}</section><section><h3>Top destination ports</h3>{destination_port_rows}</section></div><h3>Common service ports</h3>{service_port_rows}
+<h2>TCP flag statistics</h2>{flag_rows}
+<h2>Communication pairs</h2>{communication_rows}
+<h2>Time-window statistics</h2>{window_rows}
+</body></html>
+"""
     Path(path).write_text(document, encoding="utf-8")
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Analyze PCAP/PCAPNG traffic and write a JSON report")
-    parser.add_argument("path", help="Path to a .pcap or .pcapng file")
-    parser.add_argument("--output", "-o", help="JSON report path (default: <capture>_analysis.json)")
-    parser.add_argument("--html", help="Optional HTML report path")
-    parser.add_argument("--window", type=float, default=1.0, help="Time-series window in seconds (default: 1)")
-    parser.add_argument("--top", type=int, default=10, help="Number of top IPs, ports, and pairs to include")
-    args = parser.parse_args()
-    output = Path(args.output) if args.output else Path(args.path).with_name(f"{Path(args.path).stem}_analysis.json")
-    try:
-        report = analyze_pcap(args.path, window_seconds=args.window, top_n=args.top)
-        write_json_report(report, output)
-        if args.html:
-            write_html_report(report, args.html)
-    except (PcapReadError, ValueError, OSError) as exc:
-        parser.error(str(exc))
-    print(f"Wrote {output}")
-    if args.html:
-        print(f"Wrote {args.html}")
-
-
-if __name__ == "__main__":
-    main()
