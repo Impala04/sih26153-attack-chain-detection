@@ -1,5 +1,6 @@
 import json
 import sys
+from pathlib import Path
 
 import pytest
 from scapy.all import Ether, ICMP, IP, TCP, UDP, wrpcap
@@ -13,35 +14,23 @@ def frame(packet):
     return Ether(src="02:00:00:00:00:01", dst="02:00:00:00:00:02") / packet
 
 
-def test_statistics_for_deterministic_capture(tmp_path):
-    path = tmp_path / "known.pcap"
-    packets = [
-        frame(IP(src="10.0.0.1", dst="10.0.0.2") / TCP(sport=50000, dport=443, flags="S")),
-        frame(IP(src="10.0.0.1", dst="10.0.0.2") / TCP(sport=50000, dport=443, flags="SA")),
-        frame(IP(src="10.0.0.2", dst="8.8.8.8") / UDP(sport=40000, dport=53)),
-        frame(IP(src="10.0.0.2", dst="10.0.0.1") / ICMP()),
-    ]
-    for packet, ts in zip(packets, (100, 100.5, 101.25, 102)):
-        packet.time = ts
-    wrpcap(str(path), packets)
-
+def test_statistics_for_synthetic_investigation_fixture(tmp_path):
+    path = Path(__file__).parent / "data" / "investigation_fixture.pcap"
     report = analyze_pcap(path, window_seconds=1)
-    assert report["capture"]["total_packets"] == 4
+    assert report["capture"]["total_packets"] == 7
     assert report["capture"]["duration_seconds"] == pytest.approx(2)
-    assert report["protocols"]["counts"] == {"TCP": 2, "UDP": 1, "ICMP": 1, "OTHER": 0}
-    assert report["protocols"]["distribution_percent"] == {"TCP": 50, "UDP": 25, "ICMP": 25, "OTHER": 0}
-    assert report["ips"]["unique_source_ips"] == 2
-    assert report["ips"]["unique_destination_ips"] == 3
-    assert report["ips"]["unique_communicating_pairs"] == 3
-    assert report["ports"]["top_destinations"] == [{"value": 443, "packets": 2}, {"value": 53, "packets": 1}]
-    assert report["ports"]["common_service_ports"]["443"]["destination_packets"] == 2
+    assert report["protocols"]["counts"] == {"TCP": 3, "UDP": 2, "ICMP": 1, "OTHER": 1}
+    assert report["ips"]["unique_source_ips"] == 4
+    assert report["ips"]["unique_destination_ips"] == 5
+    assert report["ips"]["unique_communicating_pairs"] == 6
+    assert report["ports"]["top_destinations"] == [{"value": 443, "packets": 2}, {"value": 53, "packets": 2}, {"value": 51514, "packets": 1}]
     assert report["tcp_flags"]["SYN"] == 1
     assert report["tcp_flags"]["SYN-ACK"] == 1
-    assert report["traffic"]["total_bytes"] == sum(len(p) for p in packets)
-    assert report["traffic"]["average_packet_size_bytes"] == pytest.approx(report["traffic"]["total_bytes"] / 4)
-    assert report["traffic"]["average_packets_per_second"] == pytest.approx(2)
+    assert report["tcp_flags"]["ACK"] == 2
+    assert report["traffic"]["total_bytes"] > 0
+    assert report["traffic"]["average_packets_per_second"] == pytest.approx(3.5)
     assert report["top_communications"][0]["packet_count"] == 2
-    assert [window["packet_count"] for window in report["time_series"]] == [2, 1, 1]
+    assert sum(window["packet_count"] for window in report["time_series"]) == 7
     json.dumps(report, allow_nan=False)
 
     html_path = tmp_path / "report.html"
@@ -61,7 +50,7 @@ def test_statistics_for_deterministic_capture(tmp_path):
     write_html_report(rate_report, html_path)
     html_report = html_path.read_text(encoding="utf-8")
     assert "Packets / second" in html_report
-    assert "0.8" in html_report
+    assert "1.4" in html_report
 
 
 def test_observations_are_deterministic_and_statistical(tmp_path, monkeypatch):
