@@ -22,12 +22,14 @@ def make_event(detection_type: str, event_id: str = "evt-1") -> DetectionEvent:
 
 
 def test_analyze_handles_unrecognized_detection_type():
-    """An unrecognized detection_type degrades to 'Unknown' stage, not a crash."""
+    """A single unrecognized detection_type doesn't crash, and the chain
+    has no known current_stage yet (guard prevents assigning "Unknown")."""
     orchestrator = AnalysisOrchestrator()
     event = make_event("not_a_real_detection_type")
     result = orchestrator.analyze([event], "test")
     assert result.attack_chains
-    assert result.attack_chains[0]["current_stage"] == "Unknown"
+    assert result.attack_chains[0]["current_stage"] is None
+    assert result.attack_chains[0]["stages"] == []
 
 
 def test_analyze_handles_known_detection_types():
@@ -44,8 +46,8 @@ def test_analyze_mixed_batch_unknown_and_known_types():
     """A batch with one unrecognized type shouldn't corrupt the rest.
 
     These two events share hosts, so they correlate into a single chain.
-    Both stages should appear in that chain's stage history, even though
-    current_stage (the most recent event's stage) ends up as "Unknown".
+    The known stage should remain current_stage; "Unknown" should not
+    appear in the chain's stage history at all.
     """
     orchestrator = AnalysisOrchestrator()
     events = [
@@ -54,6 +56,20 @@ def test_analyze_mixed_batch_unknown_and_known_types():
     ]
     result = orchestrator.analyze(events, "test")
     assert len(result.attack_chains) == 1
-    stages_seen = set(result.attack_chains[0]["stages"])
-    assert "Lateral Movement" in stages_seen
-    assert "Unknown" in stages_seen
+    chain = result.attack_chains[0]
+    assert chain["current_stage"] == "Lateral Movement"
+    assert "Unknown" not in chain["stages"]
+
+
+def test_unknown_stage_does_not_overwrite_current_stage():
+    """An unrecognized detection_type shouldn't erase a chain's known stage."""
+    orchestrator = AnalysisOrchestrator()
+    events = [
+        make_event("suspicious_traffic", event_id="evt-1"),
+        make_event("not_a_real_detection_type", event_id="evt-2"),
+    ]
+    result = orchestrator.analyze(events, "test")
+    assert len(result.attack_chains) == 1
+    chain = result.attack_chains[0]
+    assert chain["current_stage"] == "Lateral Movement"
+    assert "Unknown" not in chain["stages"]    
