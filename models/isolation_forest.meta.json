@@ -1,0 +1,23 @@
+{
+  "feature_cols": [
+    "connection_count",
+    "unique_destinations",
+    "unique_ports",
+    "total_fwd_packets",
+    "total_bwd_packets",
+    "total_bytes_fwd",
+    "total_bytes_bwd",
+    "avg_flow_duration",
+    "max_flow_duration",
+    "std_flow_duration",
+    "max_bytes_total",
+    "std_bytes_total",
+    "max_packets_total",
+    "bytes_per_connection",
+    "flows_per_second",
+    "lateral_move_flag"
+  ],
+  "contamination": 0.05,
+  "anomaly_score_raw_min": -0.2695375927336633,
+  "anomaly_score_raw_max": 0.22978534469672302
+}
