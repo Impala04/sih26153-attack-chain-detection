@@ -16,6 +16,7 @@ documented intent (every stage past detection/correlation is Optional).
 
 from __future__ import annotations
 
+import logging
 import time
 import uuid
 from pathlib import Path
@@ -31,7 +32,7 @@ from src.providers.mitre_provider import MitreProvider, MockMitreMapper
 from src.providers.risk_provider import MockRiskEngine, RiskProvider
 from src.providers.world_model_provider import MockWorldModel, WorldModelProvider
 
-
+logger = logging.getLogger(__name__)
 class AnalysisOrchestrator:
     """Turn a batch of DetectionEvents into a complete AnalysisResult.
 
@@ -80,7 +81,10 @@ class AnalysisOrchestrator:
 
         chains: List[AttackChain] = self.correlator.correlate(detections)
         chain_dicts = [chain.to_dict() for chain in chains]
-
+        logger.info(
+            "Correlated %d detections into %d attack chains (input_source=%s)",
+            len(detections), len(chains), input_source,
+        )
         primary_chain_dict = self._primary_chain_dict(chain_dicts)
 
         forecast = self._safe_call(
@@ -123,6 +127,10 @@ class AnalysisOrchestrator:
             },
         )
 
+        if warnings:
+            logger.warning(
+                "Analysis completed with %d warning(s): %s", len(warnings), warnings
+            )
         return AnalysisResult(
             analysis_id=str(uuid.uuid4()),
             timestamp=time.time(),
@@ -160,6 +168,7 @@ class AnalysisOrchestrator:
         try:
             return func(context)
         except Exception as exc:  # noqa: BLE001 - providers are third-party-ish
+            logger.warning("%s provider failed: %s", label, exc, exc_info=True)
             warnings.append(f"{label} provider failed: {exc}")
             return None
 def run_analysis(
@@ -187,10 +196,14 @@ def run_analysis(
     if suffix == ".csv":
         from src.ingestion.csv_adapter import build_events_from_csv
 
+
+        logger.info("run_analysis: loading CSV input %s", path)
         detections = build_events_from_csv(str(path))
+        logger.info("run_analysis: CSV adapter produced %d detection events", len(detections))
         return orchestrator.analyze(detections, input_source=f"csv:{path.name}")
 
     if suffix in {".pcap", ".pcapng"}:
+        logger.warning("run_analysis: PCAP input %s rejected (not yet supported)", path)
         raise NotImplementedError(
             "PCAP input is not yet wired into run_analysis. "
             "Waiting on feature/pcap-ingestion-analysis to merge a "
