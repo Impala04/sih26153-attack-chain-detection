@@ -97,6 +97,13 @@ class RunAnalysisTests(unittest.TestCase):
         self.assertEqual(result.input_source, "pcap:investigation_fixture.pcap")
         self.assertEqual(result.detections, [])
 
+    def test_run_analysis_pcapng_fixture_with_no_detections(self):
+        fixture = Path(__file__).parent / "data" / "investigation_fixture.pcapng"
+        result = run_analysis(str(fixture))
+        self.assertTrue(result.analysis_id)
+        self.assertEqual(result.input_source, "pcap:investigation_fixture.pcapng")
+        self.assertEqual(result.detections, [])    
+
     def test_run_analysis_pcap_scan_produces_detections(self):
         path = self.tmp_path / "scan.pcap"
         _write_scan_pcap(path)
