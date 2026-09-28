@@ -255,6 +255,8 @@ def run_analysis(
     if suffix in {".pcap", ".pcapng"}:
         from src.ingestion.pcap_reader import iter_pcap
         from src.processing.pipeline import ProcessingPipeline
+        from src.model.event_scoring import score_detection_event
+        from src.model.score import DEFAULT_MODEL_PATH
 
         logger.info("run_analysis: loading PCAP input %s", path)
 
@@ -266,6 +268,14 @@ def run_analysis(
 
         detections.extend(pipeline.flush())
 
+        for event in detections:
+            try:
+                event.metadata["ml_score"] = score_detection_event(
+                    event, model_path=DEFAULT_MODEL_PATH
+                )
+            except Exception as exc:
+                event.metadata["ml_score_error"] = str(exc)
+                
         logger.info(
             "run_analysis: PCAP pipeline produced %d detection events",
             len(detections),

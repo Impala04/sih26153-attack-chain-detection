@@ -104,6 +104,15 @@ class RunAnalysisTests(unittest.TestCase):
         self.assertTrue(result.input_source.startswith("pcap:"))
         self.assertTrue(len(result.detections) > 0)
 
+    def test_run_analysis_pcap_events_get_ml_score(self):
+        path = self.tmp_path / "scan.pcap"
+        _write_scan_pcap(path)
+        result = run_analysis(str(path))
+        self.assertTrue(len(result.detections) > 0)
+        for det in result.detections:
+            self.assertNotIn("ml_score_error", det["metadata"])
+            self.assertIn("ml_score", det["metadata"])   
+
     def test_run_analysis_corrupt_pcap_raises_pcapreaderror(self):
         bad = self.tmp_path / "capture.pcap"
         bad.write_bytes(b"\x00")
