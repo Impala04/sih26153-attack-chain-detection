@@ -30,9 +30,11 @@ from src.processing.events import DetectionEvent
 from src.providers.explainer_provider import ExplainerProvider, MockExplainer
 from src.providers.mitre_provider import MitreProvider, MockMitreMapper
 from src.providers.risk_provider import MockRiskEngine, RiskProvider
-from src.providers.world_model_provider import MockWorldModel, WorldModelProvider
+from src.providers.world_model_provider import WorldModelProvider, MockWorldModel
 
 logger = logging.getLogger(__name__)
+
+
 class AnalysisOrchestrator:
     """Turn a batch of DetectionEvents into a complete AnalysisResult.
 
@@ -55,7 +57,10 @@ class AnalysisOrchestrator:
             raise ValueError(
                 "pass stage_mapper OR a pre-built correlator, not both"
             )
-        self.correlator = correlator or AttackChainCorrelator(stage_mapper=stage_mapper)
+
+        self.correlator = correlator or AttackChainCorrelator(
+            stage_mapper=stage_mapper
+        )
         self.world_model_provider = world_model_provider or MockWorldModel()
         self.mitre_provider = mitre_provider or MockMitreMapper()
         self.explainer_provider = explainer_provider or MockExplainer()
@@ -81,10 +86,14 @@ class AnalysisOrchestrator:
 
         chains: List[AttackChain] = self.correlator.correlate(detections)
         chain_dicts = [chain.to_dict() for chain in chains]
+
         logger.info(
             "Correlated %d detections into %d attack chains (input_source=%s)",
-            len(detections), len(chains), input_source,
+            len(detections),
+            len(chains),
+            input_source,
         )
+
         primary_chain_dict = self._primary_chain_dict(chain_dicts)
 
         forecast = self._safe_call(
@@ -94,7 +103,11 @@ class AnalysisOrchestrator:
             {
                 "attack_chain": primary_chain_dict,
                 "recent_windows": recent_windows,
-                "window_seconds": getattr(self.world_model_provider, "window_seconds", None),
+                "window_seconds": getattr(
+                    self.world_model_provider,
+                    "window_seconds",
+                    None,
+                ),
             },
         )
 
@@ -107,7 +120,12 @@ class AnalysisOrchestrator:
                 "attack_chain": primary_chain_dict,
             },
         )
-        mitre_dicts = [m.model_dump() for m in mitre] if mitre is not None else None
+
+        mitre_dicts = (
+            [m.model_dump() for m in mitre]
+            if mitre is not None
+            else None
+        )
 
         explanation = self._safe_call(
             "explanation",
@@ -123,14 +141,21 @@ class AnalysisOrchestrator:
             {
                 "detections": detection_dicts,
                 "mitre": mitre_dicts,
-                "forecast": forecast.model_dump() if forecast is not None else None,
+                "forecast": (
+                    forecast.model_dump()
+                    if forecast is not None
+                    else None
+                ),
             },
         )
 
         if warnings:
             logger.warning(
-                "Analysis completed with %d warning(s): %s", len(warnings), warnings
+                "Analysis completed with %d warning(s): %s",
+                len(warnings),
+                warnings,
             )
+
         return AnalysisResult(
             analysis_id=str(uuid.uuid4()),
             timestamp=time.time(),
@@ -145,7 +170,9 @@ class AnalysisOrchestrator:
         )
 
     @staticmethod
-    def _primary_chain_dict(chain_dicts: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    def _primary_chain_dict(
+        chain_dicts: List[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
         """Pick the chain a single-chain-shaped provider context should see.
 
         Providers (forecast especially) are built around "the" attack
@@ -155,10 +182,16 @@ class AnalysisOrchestrator:
         """
         if not chain_dicts:
             return None
+
         return max(chain_dicts, key=lambda c: c["last_seen"])
 
     @staticmethod
-    def _safe_call(label: str, warnings: List[str], func, context: Dict[str, Any]):
+    def _safe_call(
+        label: str,
+        warnings: List[str],
+        func,
+        context: Dict[str, Any],
+    ):
         """Call a provider, converting any exception into a warning + None.
 
         This is what keeps one broken/unavailable provider (e.g. a real
@@ -168,9 +201,16 @@ class AnalysisOrchestrator:
         try:
             return func(context)
         except Exception as exc:  # noqa: BLE001 - providers are third-party-ish
-            logger.warning("%s provider failed: %s", label, exc, exc_info=True)
+            logger.warning(
+                "%s provider failed: %s",
+                label,
+                exc,
+                exc_info=True,
+            )
             warnings.append(f"{label} provider failed: {exc}")
             return None
+
+
 def run_analysis(
     input_path: Union[str, Path],
     orchestrator: Optional[AnalysisOrchestrator] = None,
@@ -179,16 +219,18 @@ def run_analysis(
 
     Dispatches on file extension:
       - .csv  -> src.ingestion.csv_adapter.build_events_from_csv
-      - .pcap/.pcapng -> not yet wired to the detection pipeline; raises
-        NotImplementedError until feature/pcap-ingestion-analysis's PCAP
-        module is merged and a matching adapter exists here.
+      - .pcap/.pcapng -> src.ingestion.pcap_reader.iter_pcap ->
+        ProcessingPipeline. Raises PcapReadError for a corrupt capture.
 
     ``orchestrator`` can be supplied for testing (e.g. with mock providers
     already configured); defaults to a fresh AnalysisOrchestrator() otherwise.
     """
     path = Path(input_path)
+
     if not path.is_file():
-        raise FileNotFoundError(f"Input file does not exist or is not a file: {path}")
+        raise FileNotFoundError(
+            f"Input file does not exist or is not a file: {path}"
+        )
 
     suffix = path.suffix.lower()
     orchestrator = orchestrator or AnalysisOrchestrator()
@@ -196,19 +238,44 @@ def run_analysis(
     if suffix == ".csv":
         from src.ingestion.csv_adapter import build_events_from_csv
 
-
         logger.info("run_analysis: loading CSV input %s", path)
-        detections = build_events_from_csv(str(path))
-        logger.info("run_analysis: CSV adapter produced %d detection events", len(detections))
-        return orchestrator.analyze(detections, input_source=f"csv:{path.name}")
 
-    if suffix in {".pcap", ".pcapng"}:
-        logger.warning("run_analysis: PCAP input %s rejected (not yet supported)", path)
-        raise NotImplementedError(
-            "PCAP input is not yet wired into run_analysis. "
-            "Waiting on feature/pcap-ingestion-analysis to merge a "
-            "PCAP -> DetectionEvent adapter (via FlowTracker/WindowManager/"
-            "FeatureExtractor/DetectionEngine)."
+        detections = build_events_from_csv(str(path))
+
+        logger.info(
+            "run_analysis: CSV adapter produced %d detection events",
+            len(detections),
         )
 
-    raise ValueError(f"Unsupported input file type: {suffix or '(no extension)'}")
+        return orchestrator.analyze(
+            detections,
+            input_source=f"csv:{path.name}",
+        )
+
+    if suffix in {".pcap", ".pcapng"}:
+        from src.ingestion.pcap_reader import iter_pcap
+        from src.processing.pipeline import ProcessingPipeline
+
+        logger.info("run_analysis: loading PCAP input %s", path)
+
+        pipeline = ProcessingPipeline()
+        detections = []
+
+        for packet in iter_pcap(path):
+            detections.extend(pipeline.ingest(packet))
+
+        detections.extend(pipeline.flush())
+
+        logger.info(
+            "run_analysis: PCAP pipeline produced %d detection events",
+            len(detections),
+        )
+
+        return orchestrator.analyze(
+            detections,
+            input_source=f"pcap:{path.name}",
+        )
+
+    raise ValueError(
+        f"Unsupported input file type: {suffix or '(no extension)'}"
+    )

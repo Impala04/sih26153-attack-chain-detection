@@ -90,14 +90,14 @@ class OrchestratorLoggingTests(unittest.TestCase):
         self.assertIn("loading CSV input", joined)
         self.assertIn("CSV adapter produced", joined)
 
-    def test_run_analysis_logs_pcap_rejection(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            fake = Path(tmp) / "capture.pcap"
-            fake.write_bytes(b"\x00")
-            with self.assertLogs("src.orchestrator", level="WARNING") as captured:
-                with self.assertRaises(NotImplementedError):
-                    run_analysis(str(fake))
-        self.assertIn("not yet supported", " ".join(captured.output))
+    
+    def test_run_analysis_logs_pcap_load(self):
+        fixture = Path(__file__).parent / "data" / "investigation_fixture.pcap"
+        with self.assertLogs("src.orchestrator", level="INFO") as captured:
+            run_analysis(str(fixture))
+        joined = " ".join(captured.output)
+        self.assertIn("loading PCAP input", joined)
+        self.assertIn("PCAP pipeline produced", joined)
 
 
 if __name__ == "__main__":
