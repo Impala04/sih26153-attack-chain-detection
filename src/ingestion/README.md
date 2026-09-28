@@ -1,6 +1,6 @@
 # PCAP ingestion
 
-This module streams `.pcap` and `.pcapng` captures through Scapy and the
+This module streams `.pcap`, `.cap`, and `.pcapng` captures through Scapy and the
 existing `src.capture.packet_parser.parse_packet` function. It yields the
 existing `src.capture.packet_schema.ParsedPacket`; it does not define a second
 packet contract and it contains no detection or flow logic.

@@ -16,6 +16,39 @@ from src.capture.packet_schema import ParsedPacket
 
 logger = logging.getLogger(__name__)
 
+_PCAP_MAGICS = {
+    b"\xd4\xc3\xb2\xa1",  # little-endian microsecond timestamps
+    b"\xa1\xb2\xc3\xd4",  # big-endian microsecond timestamps
+    b"\x4d\x3c\xb2\xa1",  # little-endian nanosecond timestamps
+    b"\xa1\xb2\x3c\x4d",  # big-endian nanosecond timestamps
+}
+
+
+def _has_capture_header(path: Path) -> bool:
+    """Reject files with missing or obviously invalid capture headers."""
+    try:
+        with path.open("rb") as capture_file:
+            header = capture_file.read(28)
+    except OSError:
+        return False
+    if header[:4] in _PCAP_MAGICS:
+        return len(header) >= 24
+    if header[:4] != b"\x0a\x0d\x0d\x0a" or len(header) < 28:
+        return False
+    byte_order = header[8:12]
+    if byte_order == b"\x1a\x2b\x3c\x4d":
+        byteorder = "big"
+    elif byte_order == b"\x4d\x3c\x2b\x1a":
+        byteorder = "little"
+    else:
+        return False
+    block_length = int.from_bytes(header[4:8], byteorder)
+    try:
+        file_size = path.stat().st_size
+    except OSError:
+        return False
+    return block_length >= 28 and block_length % 4 == 0 and block_length <= file_size
+
 
 class PcapReadError(Exception):
     """Raised when a capture cannot be opened or is not chronologically ordered."""
@@ -31,10 +64,12 @@ def iter_pcap(path: str | Path) -> Iterator[ParsedPacket]:
     Equal timestamps retain their original record order.
     """
     capture_path = Path(path)
-    if capture_path.suffix.lower() not in {".pcap", ".pcapng"}:
+    if capture_path.suffix.lower() not in {".pcap", ".pcapng", ".cap"}:
         raise PcapReadError(f"Unsupported capture format: {capture_path.suffix or '(no extension)'}")
     if not capture_path.is_file():
         raise PcapReadError(f"Capture file does not exist or is not a file: {capture_path}")
+    if not _has_capture_header(capture_path):
+        raise PcapReadError(f"Capture file has an invalid or incomplete PCAP/PCAPNG header: {capture_path}")
 
     try:
         reader = PcapReader(str(capture_path))

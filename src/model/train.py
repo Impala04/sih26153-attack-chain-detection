@@ -81,40 +81,8 @@ def compute_risk_score(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def generate_explanation(row: pd.Series) -> str:
-    """Simple rule-based explanation of why a row was flagged.
-    This is a stand-in for Niya's SHAP-based explainability — replace
-    once real feature-importance output is available."""
-    reasons = []
-
-    if row.get("attack_flow_ratio", 0) > 0.5:
-        reasons.append(f"{row['attack_flow_ratio'] * 100:.0f}% of traffic matched known attack patterns")
-    elif row.get("is_attack_window", 0) == 1:
-        reasons.append("window contains at least one flow matching a known attack pattern")
-
-    if row.get("bytes_per_connection", 0) > 0 and row.get("bytes_per_connection", 1e9) < 50 and row.get("connection_count", 0) > 10:
-        reasons.append(f"many connections with very little data each ({row['connection_count']:.0f} conns, {row['bytes_per_connection']:.0f} bytes/conn) — scan-like pattern")
-
-    if row.get("unique_ports", 0) > 50:
-        reasons.append(f"unusually high port diversity ({int(row['unique_ports'])} distinct ports)")
-
-    if row.get("unique_destinations", 0) > 20:
-        reasons.append(f"connected to {int(row['unique_destinations'])} different destinations")
-
-    if row.get("connection_count", 0) > 1000:
-        reasons.append(f"very high connection volume ({int(row['connection_count'])} connections)")
-
-    if row.get("lateral_move_flag", 0) == 1:
-        reasons.append("lateral movement pattern detected (contacted many internal hosts)")
-
-    if row.get("anomaly_score", 1) == -1 and len(reasons) == 0:
-        reasons.append("behavioral pattern deviates from typical hosts, though no single feature stands out")
-
-    if not reasons:
-        return "Normal behavior, no risk indicators."
-
-    return "; ".join(reasons)
-
-
+    """Compatibility stub; rule text cannot explain a model prediction."""
+    return "unavailable: rule-only text does not attribute the model prediction"
 def train(input_path: str, output_path: str, model_path: str, contamination: float = 0.05):
     df = pd.read_csv(input_path)
     # v1 schema used "time_window", v2 (build_windows.py) uses "window_start"
@@ -141,7 +109,8 @@ def train(input_path: str, output_path: str, model_path: str, contamination: flo
 
     df = compute_anomaly_risk(df)
     df = compute_risk_score(df)
-    df["explanation"] = df.apply(generate_explanation, axis=1)
+    # Local explanations are produced on demand at inference with a stored reference baseline.
+    df["explanation"] = None
 
     # Save model + the exact feature column order (score.py needs this to
     # avoid silently scoring on misordered/mismatched columns later)
@@ -149,14 +118,20 @@ def train(input_path: str, output_path: str, model_path: str, contamination: flo
     joblib.dump(iso, model_path)
     meta_path = str(Path(model_path).with_suffix(".meta.json"))
     with open(meta_path, "w") as f:
-        
-        json.dump({"feature_cols": FEATURE_COLS,
+        json.dump(
+            {
+                "feature_cols": FEATURE_COLS,
                 "contamination": contamination,
                 "anomaly_score_raw_min": raw_min,
-                "anomaly_score_raw_max": raw_max,},
-                f,
-                indent=2,
-                )
+                "anomaly_score_raw_max": raw_max,
+                "reference_features": {
+                    key: float(value)
+                    for key, value in X.median(numeric_only=True).items()
+                },
+            },
+            f,
+            indent=2,
+        )
     print(f"Saved model to {model_path}")
     print(f"Saved feature metadata to {meta_path}")
 

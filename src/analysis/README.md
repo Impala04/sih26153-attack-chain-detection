@@ -5,20 +5,34 @@ The analyzer consumes the standalone ingestion iterator and the shared
 or frontend. It makes descriptive statistics only; ports and TCP flag counts
 are not attack verdicts.
 
+The reusable `analyze_packets(iterable, window_seconds=1.0, top_n=10)` function
+accepts normalized `ParsedPacket` records directly and returns investigation
+statistics. `analyze_pcap(path, ...)` reads a capture through Scapy and
+delegates to the same packet analyzer. `pcap_json_report` builds and writes the
+JSON report separately from packet reading and analysis; output object keys
+are sorted, non-finite numbers are rejected, and `packet_count` is included at
+the report's top level.
+
 ## Run
 
 Install dependencies with `pip install -r requirements-pcap.txt`, then from the
 repository root:
 
 ```bash
-python -m src.analysis.pcap_analyzer capture.pcap --output reports/capture.json
-python -m src.analysis.pcap_analyzer capture.pcapng --output reports/capture.json --html reports/capture.html --window 5
+python -m src.analysis.pcap_cli capture.pcap
+python -m src.analysis.pcap_cli capture.pcapng --output reports/capture.json --html reports/capture.html --window 5
 ```
+
+The standalone CLI runs from the repository root and does not start or call the
+application backend. It writes `<capture>_analysis.json` beside the input by
+default; use `--output`/`-o` to select a JSON path. `--html` optionally writes
+the standalone HTML report.
 
 `--window` sets fixed-width time-series buckets in seconds (default 1), and
 `--top` sets the number of top IPs, ports, and communications (default 10).
-Without `--output`, JSON is written beside the input as
-`<capture>_analysis.json`.
+The optional HTML report is self-contained and includes packet count,
+protocol/IP/port/TCP flag summaries, aggregate and per-window packet/byte
+rates, communication pairs, and time-window statistics.
 
 ## JSON report schema
 
@@ -48,6 +62,7 @@ Packet bytes use `len(raw_scapy_packet)`. Protocol percentages are based on
 parsed IPv4 packets (including IPv4 OTHER). Unsupported/non-IP packets are
 skipped by ingestion and therefore excluded from packet counts. Start/end
 times are null and numeric totals are zero for an empty capture.
-Packets with non-finite timestamps are skipped. The CLI serializes JSON with
+Packets with missing, nonnumeric, non-finite, or unrepresentable timestamps are
+skipped. The CLI serializes JSON with
 non-finite values disallowed and reports invalid input/output paths as a
 concise command error with a non-zero exit status.
