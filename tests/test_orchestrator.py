@@ -72,4 +72,4 @@ def test_unknown_stage_does_not_overwrite_current_stage():
     assert len(result.attack_chains) == 1
     chain = result.attack_chains[0]
     assert chain["current_stage"] == "Lateral Movement"
-    assert "Unknown" not in chain["stages"]    
+    assert "Unknown" not in chain["stages"]

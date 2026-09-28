@@ -1,0 +1,159 @@
+{
+  "capture": {
+    "duration_seconds": 1.0,
+    "end_time": 1700000101.0,
+    "end_time_iso": "2023-11-14T22:15:01+00:00",
+    "start_time": 1700000100.0,
+    "start_time_iso": "2023-11-14T22:15:00+00:00",
+    "time_series_window_seconds": 1.0,
+    "total_packets": 3
+  },
+  "file": {
+    "name": "mixed_test.pcap",
+    "size_bytes": 210
+  },
+  "ips": {
+    "top_destinations": [
+      {
+        "packets": 1,
+        "value": "10.0.0.2"
+      },
+      {
+        "packets": 1,
+        "value": "8.8.8.8"
+      },
+      {
+        "packets": 1,
+        "value": "10.0.0.1"
+      }
+    ],
+    "top_sources": [
+      {
+        "packets": 2,
+        "value": "10.0.0.1"
+      },
+      {
+        "packets": 1,
+        "value": "10.0.0.2"
+      }
+    ],
+    "unique_communicating_pairs": 3,
+    "unique_destination_ips": 3,
+    "unique_source_ips": 2
+  },
+  "observations": [],
+  "packet_count": 3,
+  "ports": {
+    "common_service_ports": {
+      "53": {
+        "destination_packets": 1,
+        "source_packets": 0
+      },
+      "80": {
+        "destination_packets": 1,
+        "source_packets": 0
+      }
+    },
+    "top_destinations": [
+      {
+        "packets": 1,
+        "value": 80
+      },
+      {
+        "packets": 1,
+        "value": 53
+      }
+    ],
+    "top_sources": [
+      {
+        "packets": 1,
+        "value": 42000
+      },
+      {
+        "packets": 1,
+        "value": 42001
+      }
+    ]
+  },
+  "protocols": {
+    "counts": {
+      "ICMP": 1,
+      "OTHER": 0,
+      "TCP": 1,
+      "UDP": 1
+    },
+    "distribution_percent": {
+      "ICMP": 33.33,
+      "OTHER": 0.0,
+      "TCP": 33.33,
+      "UDP": 33.33
+    }
+  },
+  "tcp_flags": {
+    "ACK": 0,
+    "CWR": 0,
+    "ECE": 0,
+    "FIN": 0,
+    "PSH": 0,
+    "RST": 0,
+    "SYN": 1,
+    "SYN-ACK": 0,
+    "URG": 0
+  },
+  "time_series": [
+    {
+      "byte_count": 96,
+      "icmp_count": 0,
+      "other_count": 0,
+      "packet_count": 2,
+      "tcp_count": 1,
+      "udp_count": 1,
+      "unique_destination_ips": 2,
+      "unique_source_ips": 1,
+      "window_end": 1700000101.0,
+      "window_start": 1700000100.0,
+      "window_start_iso": "2023-11-14T22:15:00+00:00"
+    },
+    {
+      "byte_count": 42,
+      "icmp_count": 1,
+      "other_count": 0,
+      "packet_count": 1,
+      "tcp_count": 0,
+      "udp_count": 0,
+      "unique_destination_ips": 1,
+      "unique_source_ips": 1,
+      "window_end": 1700000102.0,
+      "window_start": 1700000101.0,
+      "window_start_iso": "2023-11-14T22:15:01+00:00"
+    }
+  ],
+  "top_communications": [
+    {
+      "byte_count": 54,
+      "dst_ip": "10.0.0.2",
+      "packet_count": 1,
+      "src_ip": "10.0.0.1"
+    },
+    {
+      "byte_count": 42,
+      "dst_ip": "8.8.8.8",
+      "packet_count": 1,
+      "src_ip": "10.0.0.1"
+    },
+    {
+      "byte_count": 42,
+      "dst_ip": "10.0.0.1",
+      "packet_count": 1,
+      "src_ip": "10.0.0.2"
+    }
+  ],
+  "traffic": {
+    "average_bytes_per_second": 138.0,
+    "average_packet_size_bytes": 46.0,
+    "average_packets_per_second": 3.0,
+    "maximum_packet_size_bytes": 54,
+    "minimum_packet_size_bytes": 42,
+    "total_bytes": 138
+  }
+}

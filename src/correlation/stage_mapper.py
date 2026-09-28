@@ -27,7 +27,7 @@ class FallbackStageMapper(StageMapper):
         "suspicious_traffic": "Lateral Movement",
     }
 
-    
+
     def map_event(self, event: DetectionEvent) -> str:
         """Return the temporary stage label for a known detection type.
 

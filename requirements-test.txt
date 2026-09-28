@@ -1,2 +1,3 @@
 -r requirements-pcap.txt
 pytest
+httpx>=0.24

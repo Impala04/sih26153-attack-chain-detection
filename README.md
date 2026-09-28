@@ -49,11 +49,19 @@ SOC Dashboard
 
 CyberFlux supports network flows and packet-level traffic data including CIC-IDS2017 dataset and will include PCAP data support soon.
 
+Demo Mode includes a pre-scored sample at `data/host_features_v2_scored.zip`. The backend reads the CSV directly from this single-file ZIP archive. Raw labelled-flow CSVs are not included.
+
 ## Roadmap
 
 * Live packets monitoring
-* PCAP analysis
+* PCAP/PCAPNG packet ingestion for investigation (separate from detection)
 * MITRE ATT&CK mapping
 * Temporal attacks forecasting
 * Explainable predictions
 * Real-time SOC dashboard
+
+PCAP uploads accept `.pcap`, `.pcapng`, and `.cap` files through
+`POST /api/pcap/parse` as multipart form data under the `file` field. The API
+returns normalized IPv4 TCP, UDP, and ICMP packet metadata, capped at 10,000
+records per response. Install `requirements-pcap.txt` to enable Scapy parsing
+and multipart uploads.
