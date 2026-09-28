@@ -21,11 +21,11 @@ class ProcessingPipeline:
     def __init__(
         self,
         window_seconds: int = 30,
-        idle_timeout_seconds: float = 60.0,
+        flow_timeout_seconds: float = 120.0,
         detector: Optional[DetectionEngine] = None,
     ) -> None:
         self.flow_tracker = FlowTracker(
-            idle_timeout_seconds=idle_timeout_seconds
+            flow_timeout_seconds=flow_timeout_seconds
         )
         self.window_manager = WindowManager(
             window_seconds=window_seconds

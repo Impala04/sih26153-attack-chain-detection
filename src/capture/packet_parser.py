@@ -14,6 +14,9 @@ def parse_packet(pkt) -> Optional[ParsedPacket]:
         return None
 
     ip_layer = pkt[IP]
+    packet_length = len(pkt)
+    # CIC-compatible payload bytes exclude IP/TCP/UDP headers.
+    payload_length = 0
     timestamp = float(getattr(pkt, "time", time.time()))
     src_port = dst_port = tcp_flags = tcp_window = tcp_seq = None
     protocol = "OTHER"
@@ -27,11 +30,13 @@ def parse_packet(pkt) -> Optional[ParsedPacket]:
         tcp_window = int(tcp_layer.window)
         tcp_seq = int(tcp_layer.seq)
         payload_size = len(bytes(tcp_layer.payload))
+        payload_length = payload_size
     elif pkt.haslayer(UDP):
         udp_layer = pkt[UDP]
         protocol = "UDP"
         src_port, dst_port = int(udp_layer.sport), int(udp_layer.dport)
         payload_size = len(bytes(udp_layer.payload))
+        payload_length = payload_size
     elif pkt.haslayer(ICMP):
         protocol = "ICMP"
         payload_size = len(bytes(pkt[ICMP].payload))
@@ -47,7 +52,8 @@ def parse_packet(pkt) -> Optional[ParsedPacket]:
         src_ip=ip_layer.src,
         dst_ip=ip_layer.dst,
         protocol=protocol,
-        packet_length=len(pkt),
+        packet_length=packet_length,
+        payload_length=payload_length,
         src_port=src_port,
         dst_port=dst_port,
         tcp_flags=tcp_flags,

@@ -69,10 +69,41 @@ class FeatureExtractor:
         for window in ordered_windows:
             flows = window.flows
             connection_count = len(flows)
-            durations = [flow.duration_seconds for flow in flows]
-            byte_counts = [float(flow.total_bytes) for flow in flows]
-            packet_counts = [float(flow.packet_count) for flow in flows]
 
+            # CICFlowMeter reports flow duration in microseconds.
+            durations = [
+                flow.duration_microseconds
+                for flow in flows
+            ]
+
+            # Use directional TCP/UDP payload counts for CIC-compatible
+            # model features. Full packet sizes remain diagnostics below.
+            total_fwd_packets = sum(
+                flow.forward_packet_count for flow in flows
+            )
+            total_bwd_packets = sum(
+                flow.backward_packet_count for flow in flows
+            )
+            total_bytes_fwd = sum(
+                flow.forward_payload_bytes for flow in flows
+            )
+            total_bytes_bwd = sum(
+                flow.backward_payload_bytes for flow in flows
+            )
+
+            # Per-flow totals feed the CIC aggregate maximum and standard
+            # deviation features.
+            flow_payload_bytes = [
+                float(flow.forward_payload_bytes + flow.backward_payload_bytes)
+                for flow in flows
+            ]
+            flow_packet_counts = [
+                float(flow.forward_packet_count + flow.backward_packet_count)
+                for flow in flows
+            ]
+
+            # Full captured packet sizes/bytes are kept for rule diagnostics,
+            # not used as the CIC-compatible model byte features.
             packet_sizes = [
                 float(size)
                 for flow in flows
@@ -92,7 +123,7 @@ class FeatureExtractor:
             }
 
             total_packets = sum(flow.packet_count for flow in flows)
-            total_bytes = sum(flow.total_bytes for flow in flows)
+            total_packet_bytes = sum(flow.total_bytes for flow in flows)
             syn_count = sum(flow.syn_count for flow in flows)
             ack_count = sum(flow.ack_count for flow in flows)
             rst_count = sum(flow.rst_count for flow in flows)
@@ -103,20 +134,20 @@ class FeatureExtractor:
                 "connection_count": connection_count,
                 "unique_destinations": unique_destinations,
                 "unique_ports": len(unique_dst_ports),
-                "total_fwd_packets": total_packets,
-                # The current tracker uses directional flow keys, so reverse
-                # packets are tracked in their own directional flow/window.
-                "total_bwd_packets": 0,
-                "total_bytes_fwd": total_bytes,
-                "total_bytes_bwd": 0,
+                "total_fwd_packets": total_fwd_packets,
+                "total_bwd_packets": total_bwd_packets,
+                "total_bytes_fwd": total_bytes_fwd,
+                "total_bytes_bwd": total_bytes_bwd,
                 "avg_flow_duration": mean(durations) if durations else 0.0,
                 "max_flow_duration": max(durations, default=0.0),
                 "std_flow_duration": _sample_std(durations),
-                "max_bytes_total": max(byte_counts, default=0.0),
-                "std_bytes_total": _sample_std(byte_counts),
-                "max_packets_total": max(packet_counts, default=0.0),
+                "max_bytes_total": max(flow_payload_bytes, default=0.0),
+                "std_bytes_total": _sample_std(flow_payload_bytes),
+                "max_packets_total": max(flow_packet_counts, default=0.0),
                 "bytes_per_connection": (
-                    total_bytes / connection_count if connection_count else 0.0
+                    total_bytes_fwd / connection_count
+                    if connection_count
+                    else 0.0
                 ),
                 "flows_per_second": connection_count / seconds,
                 "lateral_move_flag": int(
@@ -126,12 +157,11 @@ class FeatureExtractor:
 
             # Diagnostics for explainable behavioral rules. These remain
             # separate from PHASE1_FEATURE_COLUMNS.
-            packet_size_count = len(packet_sizes)
             diagnostics: Dict[str, object] = {
                 "total_packets": total_packets,
-                "total_bytes": total_bytes,
+                "total_bytes": total_packet_bytes,
                 "packets_per_second": total_packets / seconds,
-                "bytes_per_second": total_bytes / seconds,
+                "bytes_per_second": total_packet_bytes / seconds,
                 "flow_count": connection_count,
                 "unique_dst_ips": unique_destinations,
                 "unique_dst_ports": len(unique_dst_ports),

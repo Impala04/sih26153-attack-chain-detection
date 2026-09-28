@@ -13,6 +13,9 @@ class ParsedPacket:
     dst_ip: str
     protocol: str
     packet_length: int
+    # Application payload bytes used by the bidirectional flow tracker.
+    payload_length: int = 0
+    # Not every protocol has ports/flags; these are None when not applicable.
     src_port: Optional[int] = None
     dst_port: Optional[int] = None
     tcp_flags: Optional[str] = None
@@ -31,6 +34,7 @@ class ParsedPacket:
             "dst_port": self.dst_port,
             "protocol": self.protocol,
             "packet_length": self.packet_length,
+            "payload_length": self.payload_length,
             "tcp_flags": self.tcp_flags,
             "ttl": self.ttl,
             "tcp_window": self.tcp_window,
