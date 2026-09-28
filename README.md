@@ -49,8 +49,6 @@ SOC Dashboard
 
 CyberFlux supports network flows and packet-level traffic data including CIC-IDS2017 dataset and will include PCAP data support soon.
 
-Demo Mode includes a pre-scored sample at `data/host_features_v2_scored.zip`. The backend reads the CSV directly from this single-file ZIP archive. Raw labelled-flow CSVs are not included.
-
 ## Roadmap
 
 * Live packets monitoring
