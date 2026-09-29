@@ -27,6 +27,14 @@ SCENARIOS = {"clean": "Clean traffic", "ddos": "DDoS burst", "infiltration": "Su
 app = FastAPI(title="CyberFlux Demo API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
+import sys  # noqa: E402
+
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from backend.analysis_routes import router as analysis_router  # noqa: E402
+
+app.include_router(analysis_router)
+
 MAX_PCAP_UPLOAD_BYTES = 100 * 1024 * 1024
 MAX_PCAP_RESPONSE_PACKETS = 10_000
 PCAP_SUFFIXES = {".pcap", ".pcapng", ".cap"}
