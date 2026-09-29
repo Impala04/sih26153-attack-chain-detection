@@ -1,30 +1,17 @@
-﻿"""Forecasting provider: predicts the next attack-chain stage.
-
-IMPORTANT — stage mismatch with the real World Model (see WORLD_MODEL.md):
-Aaron's ``WorldModelForecaster`` (src/model/forecast_world_model.py) predicts
-a *binary attack/no-attack probability* per future 30-second window for one
-(src_ip, dst_ip) pair. It does not predict which MITRE-chain *stage* comes
-next. The pipeline contract (``contracts.ForecastResult.predicted_stage``)
-asks for a stage name.
-
-``RealWorldModelProvider`` below is therefore an adapter, not a 1:1 wrapper:
-it calls the real model and maps its binary output onto a two-value
-pseudo-stage ("Attack Likely" / "No Attack Predicted") using the top future
-step's probability as confidence. This is a deliberate stopgap so the
-orchestrator has something real to call today. True stage-transition
-forecasting (Discovery -> Lateral Movement -> ...) needs either a retrained
-model or a mapping layer, and should be revisited with Simar/Aaron once MITRE
-mapping exists.
-"""
+﻿"""Mock attack-stage forecasts and the real future attack-probability model."""
 
 from __future__ import annotations
 
 import hashlib
+import os
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-from src.contracts import ForecastResult, StageProbability
+import pandas as pd
+
+from src.contracts import ForecastResult, FutureAttackProbability, StageProbability
+from src.model.train import FEATURE_COLS, LATERAL_MOVE_THRESHOLD
 
 
 class WorldModelProvider(ABC):
@@ -106,19 +93,21 @@ class MockWorldModel(WorldModelProvider):
 
 
 class RealWorldModelProvider(WorldModelProvider):
-    """Adapter over Aaron's trained GRU World Model.
+    """Load the trained GRU once and return real future attack scores.
 
-    Lazily imports torch/the real forecaster so this module can still be
-    imported (and MockWorldModel used) on machines without torch installed.
-    Construction raises immediately if the real dependencies or trained
-    checkpoint are unavailable -- callers should fall back to MockWorldModel
-    in that case rather than let the whole pipeline fail.
+    ``recent_windows`` may be a CSV-style dataframe containing many pairs or
+    an already-selected sequence. Sparse pair windows are filled using the
+    same five-minute gap rule as training. No forecast is fabricated when a
+    pair lacks enough consecutive history.
     """
+
+    MODEL_PATH_ENV = "CYBERFLUX_WORLD_MODEL_PATH"
+    DEFAULT_MODEL_RELATIVE_PATH = Path("models/world_model/world_model.pt")
 
     def __init__(
         self,
-        model_path: Union[str, Path] = "models/world_model/world_model.pt",
-        window_seconds: float = 30.0,
+        model_path: Optional[Union[str, Path]] = None,
+        window_seconds: Optional[float] = None,
     ) -> None:
         try:
             from src.model.forecast_world_model import load_world_model
@@ -128,58 +117,170 @@ class RealWorldModelProvider(WorldModelProvider):
                 "(see requirements-world-model.txt)"
             ) from exc
 
-        self._forecaster = load_world_model(model_path)
-        self.window_seconds = window_seconds
+        repository_root = Path(__file__).resolve().parents[2]
+        configured_path = model_path or os.environ.get(self.MODEL_PATH_ENV)
+        weights_path = (
+            Path(configured_path)
+            if configured_path
+            else self.DEFAULT_MODEL_RELATIVE_PATH
+        )
+        if not weights_path.is_absolute():
+            weights_path = repository_root / weights_path
+
+        # load_world_model validates weights against adjacent metadata. This
+        # happens once per provider instance, not once per analysis request.
+        self._forecaster = load_world_model(weights_path)
+        self.model_path = weights_path
+        self.window_seconds = float(self._forecaster.window_seconds)
+        self.sequence_length = int(self._forecaster.model.sequence_length)
+        self.forecast_horizon = int(self._forecaster.model.forecast_horizon)
+        if (
+            window_seconds is not None
+            and float(window_seconds) != self.window_seconds
+        ):
+            raise ValueError(
+                "Configured window_seconds does not match the trained model "
+                f"({window_seconds} != {self.window_seconds})"
+            )
 
     def forecast(self, context: Dict[str, Any]) -> ForecastResult:
         windows = context.get("recent_windows")
-        if windows is None:
-            raise ValueError(
-                "RealWorldModelProvider.forecast requires context['recent_windows'] "
-                "(a DataFrame of consecutive feature windows for one src/dst pair)"
-            )
-
-        horizon = context.get("horizon")
-        raw_result = self._forecaster.forecast(windows, horizon=horizon)
-
-        if not raw_result.predictions:
-            # No future steps produced; report "no attack predicted" with
-            # zero confidence rather than raising, so a caller still gets a
-            # valid (if uninformative) ForecastResult.
+        sequence, unavailable_reason = self._select_recent_sequence(windows)
+        if sequence is None:
             return ForecastResult(
-                predicted_stage="No Attack Predicted",
-                confidence=0.0,
+                predicted_stage="Insufficient history",
+                confidence=None,
                 probable_next_stages=[],
                 time_window_seconds=self.window_seconds,
                 source="real",
+                forecast_kind="attack_probability",
+                forecast_status="insufficient_history",
+                probability_note=self._forecaster.probability_note,
+                warning=unavailable_reason,
             )
 
-        top_step = max(raw_result.predictions, key=lambda step: step.probability)
-        predicted_stage = (
-            "Attack Likely" if top_step.predicted_attack else "No Attack Predicted"
-        )
-
-        stage_probabilities: List[StageProbability] = [
-            StageProbability(
-                stage="Attack Likely" if step.predicted_attack else "No Attack Predicted",
-                probability=round(step.probability, 4),
+        horizon = context.get("horizon")
+        raw_result = self._forecaster.forecast(sequence, horizon=horizon)
+        future_scores = [
+            FutureAttackProbability(
+                step=step.step,
+                window_start=step.window_start,
+                probability=round(float(step.probability), 6),
+                threshold=round(float(step.threshold), 6),
+                predicted_attack=bool(step.predicted_attack),
             )
             for step in raw_result.predictions
         ]
-        # Guard against float drift pushing the contract-level sum check
-        # over 1.0 when multiple future steps predict the same pseudo-stage.
-        total = sum(item.probability for item in stage_probabilities)
-        if total > 1.0:
-            scale = 1.0 / total
-            stage_probabilities = [
-                StageProbability(stage=item.stage, probability=round(item.probability * scale, 4))
-                for item in stage_probabilities
-            ]
-
+        maximum_score = max((item.probability for item in future_scores), default=None)
         return ForecastResult(
-            predicted_stage=predicted_stage,
-            confidence=round(float(top_step.probability), 4),
-            probable_next_stages=stage_probabilities,
+            # Keep the legacy display field populated, but never claim a
+            # MITRE or attack-chain stage from this binary model.
+            predicted_stage="Future attack probability",
+            confidence=maximum_score,
+            probable_next_stages=[],
             time_window_seconds=self.window_seconds,
             source="real",
+            forecast_kind="attack_probability",
+            forecast_status="ready",
+            future_attack_probabilities=future_scores,
+            forecast_horizon_steps=len(future_scores),
+            probability_note=raw_result.probability_note,
         )
+
+    def _select_recent_sequence(
+        self, windows: Any
+    ) -> Tuple[Optional[pd.DataFrame], Optional[str]]:
+        """Select the newest valid pair sequence or describe missing history."""
+        if windows is None:
+            return None, "No recent window features were supplied to the World Model."
+        if not isinstance(windows, pd.DataFrame):
+            try:
+                windows = pd.DataFrame(windows)
+            except (TypeError, ValueError) as exc:
+                raise TypeError("recent_windows must be a DataFrame or rows") from exc
+        if windows.empty:
+            return None, "No recent window features were available for forecasting."
+
+        frame = windows.copy()
+        frame.columns = [str(column).strip() for column in frame.columns]
+        required_features = list(FEATURE_COLS)
+        if "lateral_move_flag" not in frame.columns:
+            if "unique_destinations" not in frame.columns:
+                raise ValueError(
+                    "recent_windows is missing lateral_move_flag and "
+                    "unique_destinations, so the Phase 1 feature cannot be derived"
+                )
+            frame["lateral_move_flag"] = (
+                pd.to_numeric(frame["unique_destinations"], errors="raise")
+                > LATERAL_MOVE_THRESHOLD
+            ).astype(int)
+
+        missing = [
+            column
+            for column in required_features + ["window_start"]
+            if column not in frame
+        ]
+        if missing:
+            raise ValueError(f"recent_windows is missing required columns: {missing}")
+        frame["window_start"] = pd.to_datetime(
+            frame["window_start"], errors="coerce", utc=True
+        )
+        if frame["window_start"].isna().any():
+            return None, "Recent window features contain invalid window_start timestamps."
+
+        expected_rows = int(self._forecaster.model.sequence_length)
+        has_pair_keys = {"src_ip", "dst_ip"}.issubset(frame.columns)
+        if not has_pair_keys:
+            if len(frame) < expected_rows:
+                return None, (
+                    f"World Model needs {expected_rows} consecutive windows; "
+                    f"received {len(frame)}."
+                )
+            sequence = frame.sort_values("window_start").tail(expected_rows).copy()
+            timestamps = pd.to_datetime(
+                sequence["window_start"], errors="coerce", utc=True
+            )
+            expected_step = pd.Timedelta(seconds=self.window_seconds)
+            if (
+                timestamps.isna().any()
+                or not timestamps.diff().iloc[1:].eq(expected_step).all()
+            ):
+                return None, (
+                    "The supplied recent windows are not a complete consecutive "
+                    f"{self.window_seconds:g}-second sequence."
+                )
+            return sequence, None
+
+        # The training builder inserts zero-activity rows for gaps up to five
+        # minutes. Use the exact same policy at inference so sparse observed
+        # windows have the same meaning as the trained input representation.
+        from src.model.sequence_builder import densify_pair_windows
+
+        frame["is_attack_window"] = 0
+        dense = densify_pair_windows(
+            frame,
+            window_seconds=self.window_seconds,
+            max_gap_seconds=300,
+        )
+        candidates = []
+        for _, pair in dense.groupby(["src_ip", "dst_ip"], sort=False):
+            pair = pair.sort_values("window_start").reset_index(drop=True)
+            stamps = pd.to_datetime(pair["window_start"], utc=True)
+            segment_ids = (
+                stamps.diff().dt.total_seconds().fillna(self.window_seconds)
+                .ne(self.window_seconds)
+                .cumsum()
+            )
+            for _, segment in pair.groupby(segment_ids, sort=False):
+                if len(segment) >= expected_rows:
+                    sequence = segment.tail(expected_rows)
+                    candidates.append((sequence["window_start"].iloc[-1], sequence))
+
+        if not candidates:
+            return None, (
+                "No source/destination pair has enough consecutive "
+                f"{self.window_seconds:g}-second windows; the model requires "
+                f"{expected_rows}."
+            )
+        _, latest = max(candidates, key=lambda item: item[0])
+        return latest, None

@@ -1,7 +1,7 @@
 """Source-independent packet-to-detection processing pipeline."""
 
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import Callable, Dict, List, Optional
 
 from .detector import DetectionEngine
 from .events import DetectionEvent
@@ -23,6 +23,7 @@ class ProcessingPipeline:
         window_seconds: int = 30,
         flow_timeout_seconds: float = 120.0,
         detector: Optional[DetectionEngine] = None,
+        on_window_features: Optional[Callable[[List[Dict[str, object]]], None]] = None,
     ) -> None:
         self.flow_tracker = FlowTracker(
             flow_timeout_seconds=flow_timeout_seconds
@@ -32,6 +33,7 @@ class ProcessingPipeline:
         )
         self.feature_extractor = FeatureExtractor()
         self.detector = detector or DetectionEngine()
+        self.on_window_features = on_window_features
 
     def ingest(self, packet: ParsedPacket) -> List[DetectionEvent]:
         """Ingest one normalized packet and return any ready detection events."""
@@ -59,6 +61,8 @@ class ProcessingPipeline:
 
     def _detect_windows(self, windows) -> List[DetectionEvent]:
         feature_rows = self.feature_extractor.extract(windows)
+        if self.on_window_features is not None and feature_rows:
+            self.on_window_features(feature_rows)
         events: List[DetectionEvent] = []
 
         for row in feature_rows:

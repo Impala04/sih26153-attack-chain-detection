@@ -23,8 +23,12 @@ from sklearn.preprocessing import StandardScaler
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from src.model.sequence_builder import build_sequences, chronological_split
-from src.model.train import FEATURE_COLS
+from src.model.sequence_builder import (
+    build_sequences,
+    chronological_split,
+    densify_pair_windows,
+)
+from src.model.train import FEATURE_COLS, add_lateral_move_flag
 from src.model.world_model import GRUWorldModel
 
 
@@ -42,7 +46,10 @@ def scale_partition(
 ) -> pd.DataFrame:
     """Apply a scaler that was fitted on training rows only."""
     result = frame.copy()
-    result.loc[:, FEATURE_COLS] = scaler.transform(result[FEATURE_COLS])
+    result[FEATURE_COLS] = result[FEATURE_COLS].astype(np.float32)
+    result[FEATURE_COLS] = scaler.transform(
+        result[FEATURE_COLS]
+    ).astype(np.float32)
     return result
 
 
@@ -148,6 +155,14 @@ def train_world_model(args: argparse.Namespace) -> None:
     if frame.empty:
         raise ValueError(f"Input CSV contains no rows: {input_path}")
 
+    if "lateral_move_flag" not in frame.columns:
+        if "unique_destinations" not in frame.columns:
+            raise ValueError(
+                "Cannot derive lateral_move_flag: "
+                "unique_destinations is missing."
+            )
+        frame = add_lateral_move_flag(frame)
+
     required_columns = (
         list(FEATURE_COLS)
         + ["src_ip", "dst_ip", "window_start", "is_attack_window"]
@@ -157,6 +172,15 @@ def train_world_model(args: argparse.Namespace) -> None:
         raise ValueError(f"Input CSV is missing required columns: {missing}")
 
     train_frame, validation_frame, test_frame = chronological_split(frame)
+    train_frame = densify_pair_windows(
+    train_frame, window_seconds=args.window_seconds
+    )
+    validation_frame = densify_pair_windows(
+        validation_frame, window_seconds=args.window_seconds
+    )
+    test_frame = densify_pair_windows(
+        test_frame, window_seconds=args.window_seconds
+    )
 
     # Fit normalization on training rows only to prevent future-data leakage.
     scaler = StandardScaler()

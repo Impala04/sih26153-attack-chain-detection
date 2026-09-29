@@ -6,6 +6,10 @@ from contextlib import redirect_stdout
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import pytest
+
+pytest.importorskip("torch")
+
 import pandas as pd
 
 from src.evaluate.compare_world_model import compare_models

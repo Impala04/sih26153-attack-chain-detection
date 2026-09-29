@@ -1,5 +1,7 @@
 """Compare World Model forecasts with a current-window Logistic Regression baseline."""
 
+"""Compare World Model forecasts with a current-window Logistic Regression baseline."""
+
 import argparse
 import json
 from pathlib import Path
@@ -10,8 +12,12 @@ import pandas as pd
 from sklearn.linear_model import LogisticRegression
 
 from src.model.forecast_world_model import load_world_model
-from src.model.sequence_builder import build_sequences, chronological_split
-from src.model.train import FEATURE_COLS
+from src.model.sequence_builder import (
+    build_sequences,
+    chronological_split,
+    densify_pair_windows,
+)
+from src.model.train import FEATURE_COLS, add_lateral_move_flag
 from src.model.train_world_model import calculate_metrics, choose_threshold
 
 
@@ -28,6 +34,8 @@ def scale_partition(
     if not np.isfinite(raw).all():
         raise ValueError("Feature data contains NaN or infinite values")
 
+    # Convert integer columns to floating point before writing scaled values.
+    result[FEATURE_COLS] = result[FEATURE_COLS].astype(np.float32)
     result.loc[:, FEATURE_COLS] = (raw - mean) / scale
     return result
 
@@ -60,6 +68,15 @@ def load_temporal_datasets(
 ) -> Tuple[object, object, object]:
     """Build train/validation/test sequences using saved model preprocessing."""
     frame = pd.read_csv(input_path)
+
+    if "lateral_move_flag" not in frame.columns:
+        if "unique_destinations" not in frame.columns:
+            raise ValueError(
+                "Cannot derive lateral_move_flag: "
+                "unique_destinations is missing."
+            )
+        frame = add_lateral_move_flag(frame)
+
     required_columns = (
         list(FEATURE_COLS)
         + ["src_ip", "dst_ip", "window_start", "is_attack_window"]
@@ -70,13 +87,25 @@ def load_temporal_datasets(
 
     train_frame, validation_frame, test_frame = chronological_split(frame)
 
+    # Match training: fill short missing pair windows independently in each
+    # chronological partition, before applying the saved normalization.
+    window_seconds = forecaster.window_seconds
+    train_frame = densify_pair_windows(
+        train_frame, window_seconds=window_seconds
+    )
+    validation_frame = densify_pair_windows(
+        validation_frame, window_seconds=window_seconds
+    )
+    test_frame = densify_pair_windows(
+        test_frame, window_seconds=window_seconds
+    )
+
     normalization = forecaster.metadata["normalization"]
     mean = np.asarray(normalization["mean"], dtype=np.float32)
     scale = np.asarray(normalization["scale"], dtype=np.float32)
 
     sequence_length = forecaster.model.sequence_length
     horizon = forecaster.model.forecast_horizon
-    window_seconds = forecaster.window_seconds
 
     options = {
         "sequence_length": sequence_length,
@@ -104,8 +133,9 @@ def load_temporal_datasets(
     ):
         if len(dataset.X) == 0:
             raise ValueError(
-                f"No {name} sequences found. Check that the data contains "
-                "consecutive windows for source-destination pairs."
+                f"No {name} sequences found after filling short "
+                "within-pair gaps. Check the input timestamps and "
+                "capture-session gaps."
             )
 
     return train_data, validation_data, test_data
@@ -117,7 +147,7 @@ def fit_logistic_baseline(
     test_data,
     seed: int,
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Fit one LR model per future step, using only the latest input window."""
+    """Fit one LR model per future step, using the latest input window."""
     X_train = train_data.X[:, -1, :]
     X_validation = validation_data.X[:, -1, :]
     X_test = test_data.X[:, -1, :]

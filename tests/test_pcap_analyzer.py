@@ -153,7 +153,15 @@ def test_packet_analysis_skips_invalid_timestamps_and_missing_metadata():
         ParsedPacket("not-a-time", "192.0.2.1", "192.0.2.5", "TCP", 60),
         ParsedPacket(1e100, "192.0.2.1", "192.0.2.6", "TCP", 60),
         ParsedPacket(100.0, "192.0.2.1", "192.0.2.2", "TCP", 60),
-        ParsedPacket(100.5, "192.0.2.2", "192.0.2.1", "UDP", 50, None, 53),
+        ParsedPacket(
+            100.5,
+            "192.0.2.2",
+            "192.0.2.1",
+            "UDP",
+            50,
+            src_port=None,
+            dst_port=53,
+        ),
     ]
 
     report = analyze_packets(packets, window_seconds=1)
