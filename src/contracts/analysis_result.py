@@ -31,14 +31,36 @@ class StageProbability(BaseModel):
     probability: float = Field(ge=0.0, le=1.0)
 
 
+class FutureAttackProbability(BaseModel):
+    """One model score for a particular future traffic window."""
+
+    step: int = Field(ge=1)
+    window_start: str
+    probability: float = Field(ge=0.0, le=1.0)
+    threshold: float = Field(ge=0.0, le=1.0)
+    predicted_attack: bool
+
+
 class ForecastResult(BaseModel):
-    """Predicted next attack-chain stage, produced by the forecasting module."""
+    """A stage forecast from a mock or a future-attack score from the GRU.
+
+    ``predicted_stage`` and ``probable_next_stages`` remain for compatibility
+    with the current API. The GRU does not predict MITRE/attack-chain stages;
+    for ``forecast_kind="attack_probability"`` use the explicit per-window
+    ``future_attack_probabilities`` field instead.
+    """
 
     predicted_stage: str
-    confidence: float = Field(ge=0.0, le=1.0)
+    confidence: Optional[float] = Field(default=None, ge=0.0, le=1.0)
     probable_next_stages: List[StageProbability] = Field(default_factory=list)
     time_window_seconds: float = Field(ge=0.0)
     source: Source
+    forecast_kind: Literal["attack_stage", "attack_probability"] = "attack_stage"
+    forecast_status: Literal["ready", "insufficient_history"] = "ready"
+    future_attack_probabilities: List[FutureAttackProbability] = Field(default_factory=list)
+    forecast_horizon_steps: int = Field(default=0, ge=0)
+    probability_note: Optional[str] = None
+    warning: Optional[str] = None
 
     @model_validator(mode="after")
     def _check_probabilities_sum(self) -> "ForecastResult":

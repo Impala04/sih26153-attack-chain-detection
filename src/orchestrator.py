@@ -111,6 +111,12 @@ class AnalysisOrchestrator:
                 ),
             },
         )
+        if (
+            forecast is not None
+            and forecast.forecast_status == "insufficient_history"
+            and forecast.warning
+        ):
+            warnings.append(forecast.warning)
 
         mitre = self._safe_call(
             "mitre",
@@ -212,8 +218,17 @@ class AnalysisOrchestrator:
             return None
 
 
-def build_production_orchestrator(internal_networks=None) -> AnalysisOrchestrator:
-    """Orchestrator with the real MITRE mapper and provider wired in."""
+def build_production_orchestrator(
+    internal_networks=None,
+    model_path: Optional[Union[str, Path]] = None,
+    require_world_model: bool = False,
+) -> AnalysisOrchestrator:
+    """Orchestrator with real MITRE, real risk and the real World Model.
+
+    If the World Model cannot load, this logs a warning and uses MockWorldModel
+    (the forecast then reports source "mock"), unless require_world_model=True,
+    in which case the error is raised.
+    """
     from src.correlation.mitre_stage_mapper import (
         DEFAULT_INTERNAL_NETWORKS,
         MitreStageMapper,
@@ -221,10 +236,28 @@ def build_production_orchestrator(internal_networks=None) -> AnalysisOrchestrato
     from src.providers.real_mitre_provider import RealMitreProvider
 
     mapper = MitreStageMapper(internal_networks or DEFAULT_INTERNAL_NETWORKS)
+    try:
+        from src.providers.world_model_provider import RealWorldModelProvider
+
+        world_model = RealWorldModelProvider(model_path=model_path)
+    except Exception as exc:  # noqa: BLE001
+        if require_world_model:
+            raise
+        logger.warning("Real World Model unavailable, using mock forecast: %s", exc)
+        world_model = MockWorldModel()
+
     return AnalysisOrchestrator(
         stage_mapper=mapper,
+        world_model_provider=world_model,
         mitre_provider=RealMitreProvider(mapper),
     )
+
+
+def create_production_orchestrator(
+    model_path: Optional[Union[str, Path]] = None,
+) -> AnalysisOrchestrator:
+    """Strict variant: requires the real trained World Model (no mock fallback)."""
+    return build_production_orchestrator(model_path=model_path, require_world_model=True)
 
 
 def run_analysis(
@@ -239,7 +272,7 @@ def run_analysis(
         ProcessingPipeline. Raises PcapReadError for a corrupt capture.
 
     ``orchestrator`` can be supplied for testing (e.g. with mock providers
-    already configured); defaults to a fresh AnalysisOrchestrator() otherwise.
+    already configured); defaults to build_production_orchestrator() otherwise.
     """
     path = Path(input_path)
 
@@ -253,10 +286,18 @@ def run_analysis(
 
     if suffix == ".csv":
         from src.ingestion.csv_adapter import build_events_from_csv
+        from src.providers.world_model_provider import RealWorldModelProvider
 
         logger.info("run_analysis: loading CSV input %s", path)
 
         detections = build_events_from_csv(str(path))
+        recent_windows = None
+        if isinstance(orchestrator.world_model_provider, RealWorldModelProvider):
+            import pandas as pd
+
+            # Keep the full temporal feature frame for forecasting; the CSV
+            # adapter's DetectionEvents include only rows that triggered a rule.
+            recent_windows = pd.read_csv(path)
 
         logger.info(
             "run_analysis: CSV adapter produced %d detection events",
@@ -266,6 +307,7 @@ def run_analysis(
         return orchestrator.analyze(
             detections,
             input_source=f"csv:{path.name}",
+            recent_windows=recent_windows,
         )
 
     if suffix in {".pcap", ".pcapng"}:
@@ -273,10 +315,37 @@ def run_analysis(
         from src.processing.pipeline import ProcessingPipeline
         from src.model.event_scoring import score_detection_event
         from src.model.score import DEFAULT_MODEL_PATH
+        from src.providers.world_model_provider import RealWorldModelProvider
 
         logger.info("run_analysis: loading PCAP input %s", path)
 
-        pipeline = ProcessingPipeline()
+        real_provider = (
+            orchestrator.world_model_provider
+            if isinstance(orchestrator.world_model_provider, RealWorldModelProvider)
+            else None
+        )
+        recent_rows_by_pair: Dict[tuple, List[Dict[str, Any]]] = {}
+
+        def capture_window_features(rows: List[Dict[str, Any]]) -> None:
+            if real_provider is None:
+                return
+            import pandas as pd
+
+            for row in rows:
+                key = (str(row["src_ip"]), str(row["dst_ip"]))
+                pair_rows = recent_rows_by_pair.setdefault(key, [])
+                current_time = pd.to_datetime(row["window_start"], utc=True)
+                if pair_rows:
+                    previous_time = pd.to_datetime(
+                        pair_rows[-1]["window_start"], utc=True
+                    )
+                    if (current_time - previous_time).total_seconds() > 300:
+                        pair_rows.clear()
+                pair_rows.append(row)
+                if len(pair_rows) > real_provider.sequence_length:
+                    del pair_rows[:-real_provider.sequence_length]
+
+        pipeline = ProcessingPipeline(on_window_features=capture_window_features)
         detections = []
 
         for packet in iter_pcap(path):
@@ -300,6 +369,11 @@ def run_analysis(
         return orchestrator.analyze(
             detections,
             input_source=f"pcap:{path.name}",
+            recent_windows=(
+                [row for rows in recent_rows_by_pair.values() for row in rows]
+                if real_provider is not None
+                else None
+            ),
         )
 
     raise ValueError(

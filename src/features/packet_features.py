@@ -1,5 +1,7 @@
 """Deterministic packet-level statistics over normalized ParsedPacket records."""
 
+from __future__ import annotations
+
 from collections import defaultdict
 from math import isfinite, log
 from statistics import fmean, pvariance

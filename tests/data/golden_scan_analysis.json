@@ -1058,10 +1058,16 @@
   "forecast": {
     "keys": [
       "confidence",
+      "forecast_horizon_steps",
+      "forecast_kind",
+      "forecast_status",
+      "future_attack_probabilities",
       "predicted_stage",
+      "probability_note",
       "probable_next_stages",
       "source",
-      "time_window_seconds"
+      "time_window_seconds",
+      "warning"
     ]
   },
   "input_source": "pcap:golden_scan.pcap",

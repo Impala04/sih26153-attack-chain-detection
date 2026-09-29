@@ -1,0 +1,94 @@
+{
+  "model_type": "GRUWorldModel",
+  "version": 1,
+  "feature_columns": [
+    "connection_count",
+    "unique_destinations",
+    "unique_ports",
+    "total_fwd_packets",
+    "total_bwd_packets",
+    "total_bytes_fwd",
+    "total_bytes_bwd",
+    "avg_flow_duration",
+    "max_flow_duration",
+    "std_flow_duration",
+    "max_bytes_total",
+    "std_bytes_total",
+    "max_packets_total",
+    "bytes_per_connection",
+    "flows_per_second",
+    "lateral_move_flag"
+  ],
+  "group_columns": [
+    "src_ip",
+    "dst_ip"
+  ],
+  "target_column": "is_attack_window",
+  "window_seconds": 30,
+  "model_config": {
+    "feature_count": 16,
+    "sequence_length": 5,
+    "forecast_horizon": 3,
+    "hidden_size": 32,
+    "num_layers": 1,
+    "dropout": 0.1
+  },
+  "threshold": 0.94,
+  "normalization": {
+    "type": "StandardScaler",
+    "fit_on": "training rows only",
+    "mean": [
+      2.2037246414060907,
+      15.560810614050526,
+      0.6218472286758645,
+      22.66132579407233,
+      25.213699053329805,
+      1187.7757251326566,
+      39941.236614372116,
+      9592054.341367787,
+      12168111.230811791,
+      2597558.083447485,
+      33547.32607768089,
+      4543.580700799552,
+      32.31149969423451,
+      402.5044563689278,
+      0.07345748804686965,
+      0.3723869079196426
+    ],
+    "scale": [
+      63.859784460736144,
+      29.854087379042774,
+      2.8041715132836496,
+      1251.8440866232993,
+      1624.9408858914799,
+      25861.949699729856,
+      3662907.8326437995,
+      26937024.13571582,
+      31936063.69165503,
+      11815839.25386922,
+      3623621.2743177805,
+      763108.8529891729,
+      2798.4862764880736,
+      7183.933564540846,
+      2.128659482024538,
+      0.48344068791289196
+    ]
+  },
+  "training": {
+    "seed": 42,
+    "epochs_requested": 50,
+    "best_validation_loss": 2.609879732131958,
+    "batch_size": 64,
+    "learning_rate": 0.001,
+    "positive_weight": 1443.7586206896551
+  },
+  "split_ranges": {
+    "train_start": "2017-07-03 01:00:00+00:00",
+    "train_end": "2017-07-06 02:27:00+00:00",
+    "validation_start": "2017-07-06 02:28:00+00:00",
+    "validation_end": "2017-07-07 01:42:00+00:00",
+    "test_start": "2017-07-07 01:43:00+00:00",
+    "test_end": "2017-07-07 12:59:00+00:00"
+  },
+  "probability_note": "Outputs are sigmoid scores. Calibration has not been established."
+}

@@ -10,7 +10,15 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 @pytest.fixture
-def client():
+def client(monkeypatch):
+    # API behavior tests don't require a private, trained model artifact.
+    # The dedicated production-provider tests cover real artifact loading.
+    from backend import analysis_routes
+    from src.orchestrator import AnalysisOrchestrator
+
+    monkeypatch.setattr(
+        analysis_routes, "_production_orchestrator", AnalysisOrchestrator
+    )
     with TestClient(app) as test_client:
         yield test_client
 
@@ -139,3 +147,27 @@ def test_analyze_csv_lateral_movement_is_detected_and_scored(client):
 )
 def test_analyze_csv_bad_content_returns_400(client, content: bytes):
     assert _post(client, "bad.csv", content).status_code == 400
+
+
+def test_analyze_returns_service_unavailable_when_real_model_is_missing(client, monkeypatch):
+    from backend import analysis_routes
+
+    def missing_model():
+        raise FileNotFoundError("World Model weights not found")
+
+    monkeypatch.setattr(analysis_routes, "_production_orchestrator", missing_model)
+    response = _post(client, "flows.csv", _csv_bytes([_csv_row()]))
+    assert response.status_code == 503
+    assert "real World Model is unavailable" in response.json()["detail"]
+
+
+def test_analyze_returns_service_unavailable_for_invalid_model_artifact(client, monkeypatch):
+    from backend import analysis_routes
+
+    def invalid_model():
+        raise ValueError("Invalid World Model artifact")
+
+    monkeypatch.setattr(analysis_routes, "_production_orchestrator", invalid_model)
+    response = _post(client, "flows.csv", _csv_bytes([_csv_row()]))
+    assert response.status_code == 503
+    assert "Invalid World Model artifact" in response.json()["detail"]

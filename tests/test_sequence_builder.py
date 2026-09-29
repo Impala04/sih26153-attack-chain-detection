@@ -7,6 +7,7 @@ import pandas as pd
 from src.model.sequence_builder import (
     build_sequences,
     chronological_split,
+    densify_pair_windows,
 )
 from src.model.train import FEATURE_COLS
 
@@ -84,6 +85,80 @@ class SequenceBuilderTests(unittest.TestCase):
         # One complete 3-window sequence exists on each side of the gap.
         self.assertEqual(result.X.shape, (2, 2, len(FEATURE_COLS)))
         self.assertEqual(result.y.shape, (2, 1))
+
+    def test_densify_fills_short_gap_as_benign_no_flow_window(self):
+        start = datetime(2025, 1, 1, tzinfo=timezone.utc)
+        times = [
+            start,
+            start + timedelta(seconds=60),
+        ]
+        df = make_rows(times, labels=[0, 1])
+
+        # Another destination has activity for this source at the missing
+        # timestamp, so its source-wide features should be copied to the
+        # inserted row for the first destination.
+        other_destination = df.iloc[0].copy()
+        other_destination["dst_ip"] = "192.168.10.9"
+        other_destination["window_start"] = start + timedelta(seconds=30)
+        other_destination["connection_count"] = 4
+        other_destination["unique_destinations"] = 6
+        other_destination["lateral_move_flag"] = 1
+        other_destination["is_attack_window"] = 1
+
+        df = pd.concat(
+            [df, pd.DataFrame([other_destination])],
+            ignore_index=True,
+        )
+
+        dense = densify_pair_windows(
+            df,
+            window_seconds=30,
+            max_gap_seconds=300,
+        )
+
+        target_pair = dense[dense["dst_ip"] == "192.168.10.3"]
+        self.assertEqual(len(target_pair), 3)
+
+        inserted = target_pair[
+            target_pair["window_start"] == start + timedelta(seconds=30)
+        ].iloc[0]
+
+        self.assertEqual(inserted["connection_count"], 0)
+        self.assertEqual(inserted["is_attack_window"], 0)
+        self.assertEqual(inserted["unique_destinations"], 6)
+        self.assertEqual(inserted["lateral_move_flag"], 1)
+
+        sequences = build_sequences(
+            dense,
+            sequence_length=1,
+            forecast_horizon=1,
+            window_seconds=30,
+        )
+        self.assertEqual(sequences.X.shape, (2, 1, len(FEATURE_COLS)))
+        np.testing.assert_array_equal(
+            sequences.y[:, 0],
+            np.array([0.0, 1.0], dtype=np.float32),
+        )
+
+    def test_densify_does_not_fill_gaps_over_five_minutes(self):
+        start = datetime(2025, 1, 1, tzinfo=timezone.utc)
+        times = [
+            start,
+            start + timedelta(seconds=360),
+        ]
+        df = make_rows(times)
+
+        dense = densify_pair_windows(
+            df,
+            window_seconds=30,
+            max_gap_seconds=300,
+        )
+
+        self.assertEqual(len(dense), 2)
+        self.assertEqual(
+            list(dense["window_start"]),
+            times,
+        )
 
     def test_chronological_split_has_no_timestamp_overlap(self):
         start = datetime(2025, 1, 1, tzinfo=timezone.utc)

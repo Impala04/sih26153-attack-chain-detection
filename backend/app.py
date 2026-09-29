@@ -15,7 +15,7 @@ import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import pandas as pd
 from fastapi import FastAPI, File, HTTPException, UploadFile
@@ -612,8 +612,8 @@ replay = Replay()
 
 
 class Settings(BaseModel):
-    scenario: str | None = None
-    interval_seconds: float | None = Field(
+    scenario: Optional[str] = None
+    interval_seconds: Optional[float] = Field(
         default=None,
         ge=0.2,
         le=30,
@@ -627,7 +627,7 @@ def demo_status():
 
 @app.post("/api/demo/start")
 def demo_start(
-    settings: Settings | None = None,
+    settings: Optional[Settings] = None,
 ):
     if settings and settings.scenario:
 
