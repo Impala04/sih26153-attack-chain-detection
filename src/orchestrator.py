@@ -30,6 +30,7 @@ from src.processing.events import DetectionEvent
 from src.providers.explainer_provider import ExplainerProvider, MockExplainer
 from src.providers.mitre_provider import MitreProvider, MockMitreMapper
 from src.providers.risk_provider import MockRiskEngine, RiskProvider
+from src.providers.real_risk_engine import RealRiskEngine
 from src.providers.world_model_provider import WorldModelProvider, MockWorldModel
 
 logger = logging.getLogger(__name__)
@@ -64,7 +65,7 @@ class AnalysisOrchestrator:
         self.world_model_provider = world_model_provider or MockWorldModel()
         self.mitre_provider = mitre_provider or MockMitreMapper()
         self.explainer_provider = explainer_provider or MockExplainer()
-        self.risk_provider = risk_provider or MockRiskEngine()
+        self.risk_provider = risk_provider or RealRiskEngine()
 
     def analyze(
         self,
