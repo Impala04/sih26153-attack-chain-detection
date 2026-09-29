@@ -221,13 +221,11 @@ class AnalysisOrchestrator:
 def build_production_orchestrator(
     internal_networks=None,
     model_path: Optional[Union[str, Path]] = None,
-    require_world_model: bool = False,
 ) -> AnalysisOrchestrator:
     """Orchestrator with real MITRE, real risk and the real World Model.
 
-    If the World Model cannot load, this logs a warning and uses MockWorldModel
-    (the forecast then reports source "mock"), unless require_world_model=True,
-    in which case the error is raised.
+    Production never substitutes a mock forecast: an unavailable or invalid
+    World Model artifact is reported to the caller as an initialization error.
     """
     from src.correlation.mitre_stage_mapper import (
         DEFAULT_INTERNAL_NETWORKS,
@@ -236,15 +234,9 @@ def build_production_orchestrator(
     from src.providers.real_mitre_provider import RealMitreProvider
 
     mapper = MitreStageMapper(internal_networks or DEFAULT_INTERNAL_NETWORKS)
-    try:
-        from src.providers.world_model_provider import RealWorldModelProvider
+    from src.providers.world_model_provider import RealWorldModelProvider
 
-        world_model = RealWorldModelProvider(model_path=model_path)
-    except Exception as exc:  # noqa: BLE001
-        if require_world_model:
-            raise
-        logger.warning("Real World Model unavailable, using mock forecast: %s", exc)
-        world_model = MockWorldModel()
+    world_model = RealWorldModelProvider(model_path=model_path)
 
     return AnalysisOrchestrator(
         stage_mapper=mapper,
@@ -256,8 +248,8 @@ def build_production_orchestrator(
 def create_production_orchestrator(
     model_path: Optional[Union[str, Path]] = None,
 ) -> AnalysisOrchestrator:
-    """Strict variant: requires the real trained World Model (no mock fallback)."""
-    return build_production_orchestrator(model_path=model_path, require_world_model=True)
+    """Create the production orchestrator with its required World Model."""
+    return build_production_orchestrator(model_path=model_path)
 
 
 def run_analysis(

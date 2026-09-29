@@ -82,3 +82,17 @@ def test_start_stop_status():
     assert sensor.status()["running"] is True
     sensor.stop()
     assert sensor.status()["running"] is False
+
+
+def test_stop_flushes_pending_packets_into_detection_events():
+    sensor = LiveSensor(sniffer_factory=FakeSniffer, flush_interval=3600)
+    sensor.start()
+    for i in range(10):
+        sensor.handle_packet(_syn(i))
+
+    sensor.stop()
+
+    assert any(
+        event.detection_type == "potential_network_scan"
+        for event in sensor.events()
+    )

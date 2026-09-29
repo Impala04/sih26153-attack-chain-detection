@@ -78,6 +78,16 @@ class CsvAdapterTests(unittest.TestCase):
         events = build_events_from_csv(path)
         self.assertTrue(any(e.detection_type == "suspicious_traffic" for e in events))
 
+    def test_supplied_scan_diagnostics_produce_scan_event(self):
+        path = self._write_csv([_base_row(unique_dst_ports=10, syn_ratio=0.8)])
+        events = build_events_from_csv(path)
+        self.assertTrue(any(e.detection_type == "potential_network_scan" for e in events))
+
+    def test_supplied_flood_diagnostics_produce_flood_event(self):
+        path = self._write_csv([_base_row(packets_per_second=1000.0)])
+        events = build_events_from_csv(path)
+        self.assertTrue(any(e.detection_type == "potential_flood" for e in events))
+
     def test_scoring_attaches_metadata(self):
         train_rows = [
             _base_row(window_start=f"2025-01-01 12:{i:02d}:00") for i in range(20)

@@ -24,9 +24,9 @@ ANALYSIS_SUFFIXES = {".csv", ".pcap", ".pcapng"}
 @lru_cache(maxsize=1)
 def _production_orchestrator():
     """Load the real World Model once per API worker; never use a mock here."""
-    from src.orchestrator import build_production_orchestrator
+    from src.orchestrator import create_production_orchestrator
 
-    return build_production_orchestrator()
+    return create_production_orchestrator()
 
 
 @router.post("/api/analyze")

@@ -105,18 +105,17 @@ def analysis():
                 "target": _target,
                 "message": "No relevant traffic captured yet. Nothing to assess."}
     from src.orchestrator import build_production_orchestrator
-    from src.providers.world_model_provider import MockWorldModel
-
-    orchestrator = build_production_orchestrator()
     try:
+        orchestrator = build_production_orchestrator()
         result = orchestrator.analyze(items, input_source="live")
+    except (FileNotFoundError, RuntimeError, ValueError) as exc:
+        raise HTTPException(
+            503,
+            f"The real World Model is unavailable: {exc}",
+        ) from exc
     except Exception as exc:
         raise HTTPException(500, f"Live analysis failed: {exc}")
     data = json.loads(result.model_dump_json())
-    if isinstance(orchestrator.world_model_provider, MockWorldModel):
-        data["warnings"].append(
-            "Forecast is a mock (no trained world model attached); do not treat it as a prediction."
-        )
     if data["attack_chains"]:
         state, message = "analyzed", "Suspicious activity observed in live traffic."
     else:

@@ -8,17 +8,15 @@ ML risk scores. No new DetectionEvent-construction logic is introduced here.
 
 --- Schema-gap decision ---
 The windowed CSV (as produced by src/features/build_windows.py) does not
-contain the rate-based diagnostic fields DetectionEngine's scan/flood rules
+require the rate-based diagnostic fields DetectionEngine's scan/flood rules
 use (syn_ratio, connection_attempt_rate, packets_per_second,
 bytes_per_second) or window_end. Resolution:
   - window_end is derived as window_start + window_seconds
   - unique_dst_ports is aliased from unique_ports
   - unique_dst_ips is aliased from unique_destinations
-  - syn_ratio, connection_attempt_rate, packets_per_second, bytes_per_second
-    default to 0.0 (no source data available at this granularity)
-Practical effect: only the lateral-movement rule (lateral_move_flag) is
-reliably reachable from CSV input; the scan/flood rules need the missing
-rate fields and will not fire unless a future CSV format supplies them.
+  - supplied diagnostic fields are passed to DetectionEngine unchanged
+  - missing diagnostics are omitted, so their rules cannot fire without
+    evidence in the CSV
 """
 
 from __future__ import annotations
@@ -38,6 +36,14 @@ from src.processing.feature_extractor import PHASE1_FEATURE_COLUMNS
 
 REQUIRED_BASE_COLUMNS = ["src_ip", "dst_ip", "window_start"]
 REQUIRED_FEATURE_COLUMNS = [c for c in PHASE1_FEATURE_COLUMNS if c != "lateral_move_flag"]
+OPTIONAL_DETECTION_COLUMNS = (
+    "unique_dst_ports",
+    "unique_dst_ips",
+    "syn_ratio",
+    "connection_attempt_rate",
+    "packets_per_second",
+    "bytes_per_second",
+)
 
 
 def _load_and_validate(path: str) -> pd.DataFrame:
@@ -93,14 +99,14 @@ def _row_to_detector_input(row: pd.Series, window_seconds: float) -> dict:
         "dst_ip": str(row["dst_ip"]),
         "window_start": window_start,
         "window_end": window_end,
-        # rate-based diagnostics unavailable at this granularity (see module docstring)
         "unique_dst_ports": float(row["unique_ports"]),
         "unique_dst_ips": float(row["unique_destinations"]),
-        "syn_ratio": 0.0,
-        "connection_attempt_rate": 0.0,
-        "packets_per_second": 0.0,
-        "bytes_per_second": 0.0,
     }
+    for column in OPTIONAL_DETECTION_COLUMNS:
+        if column in row.index:
+            value = pd.to_numeric(row[column], errors="coerce")
+            if pd.notna(value) and np.isfinite(value):
+                detector_row[column] = float(value)
     for col in PHASE1_FEATURE_COLUMNS:
         detector_row[col] = row[col]
 
