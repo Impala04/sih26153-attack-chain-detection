@@ -78,7 +78,128 @@ def chronological_split(
         validation.sort_values(time_column).reset_index(drop=True),
         test.sort_values(time_column).reset_index(drop=True),
     )
+def densify_pair_windows(
+    df: pd.DataFrame,
+    window_seconds: int = 30,
+    max_gap_seconds: int = 300,
+) -> pd.DataFrame:
+    """Insert zero-activity pair windows across short gaps.
 
+    The CIC window builder emits rows only for active (src_ip, dst_ip) pairs.
+    Fill missing 30-second bins between observations no more than five minutes
+    apart. These inserted bins mean no flow for that pair and are labeled
+    benign. Longer gaps remain separate capture segments.
+
+    Source-wide features (unique_destinations and lateral_move_flag) are
+    copied from another row for the same source and timestamp when available.
+    """
+    if window_seconds <= 0:
+        raise ValueError("window_seconds must be greater than zero")
+    if max_gap_seconds < window_seconds:
+        raise ValueError("max_gap_seconds must be at least window_seconds")
+
+    required = [
+        "src_ip",
+        "dst_ip",
+        "window_start",
+        "is_attack_window",
+        *FEATURE_COLS,
+    ]
+    missing = [column for column in required if column not in df.columns]
+    if missing:
+        raise ValueError(f"Input data is missing required columns: {missing}")
+
+    work = df[required].copy()
+    work["window_start"] = pd.to_datetime(
+        work["window_start"], errors="coerce", utc=True
+    )
+    if work["window_start"].isna().any():
+        raise ValueError("window_start contains missing or invalid timestamps")
+
+    step_ns = window_seconds * 1_000_000_000
+    if (work["window_start"].astype("int64") % step_ns != 0).any():
+        raise ValueError(
+            f"window_start values must align to {window_seconds}-second boundaries"
+        )
+
+    if work.duplicated(["src_ip", "dst_ip", "window_start"]).any():
+        raise ValueError("Found duplicate rows for a source/destination window")
+
+    # These are source-wide in build_windows.py and repeated on each
+    # destination row for the same source and timestamp.
+    source_state = (
+        work.groupby(["src_ip", "window_start"], as_index=False)[
+            ["unique_destinations", "lateral_move_flag"]
+        ]
+        .max()
+    )
+
+    dense_parts = []
+    for (src_ip, dst_ip), group in work.groupby(
+        ["src_ip", "dst_ip"], sort=False
+    ):
+        group = group.sort_values("window_start").copy()
+
+        segment_ids = (
+            group["window_start"]
+            .diff()
+            .dt.total_seconds()
+            .fillna(0)
+            .gt(max_gap_seconds)
+            .cumsum()
+        )
+
+        for _, segment in group.groupby(segment_ids, sort=False):
+            observed_times = pd.DatetimeIndex(segment["window_start"])
+            full_times = pd.date_range(
+                start=observed_times[0],
+                end=observed_times[-1],
+                freq=f"{window_seconds}s",
+            )
+
+            dense = segment.set_index("window_start").reindex(full_times)
+            dense["_was_observed"] = dense.index.isin(observed_times)
+            dense["src_ip"] = src_ip
+            dense["dst_ip"] = dst_ip
+            dense.index.name = "window_start"
+            dense = dense.reset_index()
+
+            dense = dense.merge(
+                source_state,
+                on=["src_ip", "window_start"],
+                how="left",
+                suffixes=("", "_source"),
+                validate="many_to_one",
+            )
+
+            missing_rows = ~dense["_was_observed"].to_numpy()
+            for column in FEATURE_COLS:
+                dense[column] = pd.to_numeric(
+                    dense[column], errors="coerce"
+                ).fillna(0)
+
+            dense["is_attack_window"] = pd.to_numeric(
+                dense["is_attack_window"], errors="coerce"
+            ).fillna(0)
+
+            for column in ("unique_destinations", "lateral_move_flag"):
+                source_column = f"{column}_source"
+                dense.loc[missing_rows, column] = (
+                    dense.loc[missing_rows, source_column].fillna(0).to_numpy()
+                )
+
+            dense_parts.append(
+                dense[required].sort_values("window_start").reset_index(drop=True)
+            )
+
+    if not dense_parts:
+        return pd.DataFrame(columns=required)
+
+    return (
+        pd.concat(dense_parts, ignore_index=True)
+        .sort_values(["window_start", "src_ip", "dst_ip"])
+        .reset_index(drop=True)
+    )
 
 def build_sequences(
     df: pd.DataFrame,

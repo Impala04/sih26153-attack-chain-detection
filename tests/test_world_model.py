@@ -1,3 +1,5 @@
+import pytest
+pytest.importorskip("torch")
 import unittest
 
 import numpy as np
