@@ -52,6 +52,7 @@ class LiveSensor:
         self.bpf_filter = bpf_filter
         self.flush_interval = flush_interval
         self._lock = threading.Lock()
+        self._lifecycle = threading.Lock()  # serializes start()/stop() only
         self._events: Deque[DetectionEvent] = deque(maxlen=max_events)
         self._sniffer = None
         self._flush_thread: Optional[threading.Thread] = None
@@ -97,31 +98,40 @@ class LiveSensor:
             self.flush()
 
     def start(self) -> None:
-        if self._running:
-            raise LiveSensorError("Live sensor is already running")
-        try:
-            sniffer = self._sniffer_factory(
-                callback=self.handle_packet,
-                iface=self.iface,
-                bpf_filter=self.bpf_filter,
+        with self._lifecycle:
+            if self._running:
+                raise LiveSensorError("Live sensor is already running")
+            try:
+                sniffer = self._sniffer_factory(
+                    callback=self.handle_packet,
+                    iface=self.iface,
+                    bpf_filter=self.bpf_filter,
+                )
+                sniffer.start()
+            except Exception as exc:
+                self._error = f"Live capture unavailable: {exc}"
+                self._running = False
+                raise LiveSensorError(self._error) from exc
+            self._sniffer = sniffer
+            self._error = None
+            self._stop.clear()
+            self._running = True
+            self._flush_thread = threading.Thread(
+                target=self._flush_loop, daemon=True
             )
-            sniffer.start()
-        except Exception as exc:
-            self._error = f"Live capture unavailable: {exc}"
-            self._running = False
-            raise LiveSensorError(self._error) from exc
-        self._sniffer = sniffer
-        self._error = None
-        self._stop.clear()
-        self._running = True
-        self._flush_thread = threading.Thread(target=self._flush_loop, daemon=True)
-        self._flush_thread.start()
+            self._flush_thread.start()
 
     def stop(self) -> None:
-        self._stop.set()
-        if self._sniffer is not None:
-            self._sniffer.stop()
-        if self._flush_thread is not None:
-            self._flush_thread.join(timeout=2.0)
-        self._running = False
-        self.flush()
+        with self._lifecycle:
+            self._stop.set()
+            sniffer, self._sniffer = self._sniffer, None
+            if sniffer is not None:
+                try:
+                    sniffer.stop()
+                except Exception as exc:
+                    self._error = f"Error while stopping capture: {exc}"
+            thread, self._flush_thread = self._flush_thread, None
+            if thread is not None:
+                thread.join(timeout=2.0)
+            self._running = False
+            self.flush()
