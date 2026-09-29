@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 import pytest
+from scapy.all import Ether, IP, TCP, Raw, wrpcap
 
 torch = pytest.importorskip("torch")
 
@@ -16,6 +17,8 @@ from src.orchestrator import (
     run_analysis,
 )
 from src.processing.events import DetectionEvent
+from src.processing.packet import ParsedPacket
+from src.processing.pipeline import ProcessingPipeline
 from src.providers.world_model_provider import RealWorldModelProvider
 
 
@@ -106,6 +109,38 @@ def test_real_provider_loads_artifact_and_returns_deterministic_json_scores(tmp_
     json.dumps(result.model_dump(mode="json"))
 
 
+def test_provider_uses_input_rows_in_phase1_feature_order(tmp_path, monkeypatch):
+    provider = RealWorldModelProvider(_write_artifact(tmp_path))
+    supplied = _windows(6)
+    for feature_index, column in enumerate(FEATURE_COLS):
+        supplied[column] = [feature_index * 100 + row for row in range(len(supplied))]
+    # Scramble the CSV column order. The forecaster must still receive its
+    # normalized matrix in the saved Phase 1 order, sourced from these rows.
+    supplied = supplied[
+        list(reversed(FEATURE_COLS))
+        + ["src_ip", "dst_ip", "window_start", "is_attack_window"]
+    ]
+    captured = []
+    original_forecast = provider._forecaster.model.forecast
+
+    def capture_model_input(sequence, horizon=None):
+        captured.append(sequence.copy())
+        return original_forecast(sequence, horizon=horizon)
+
+    monkeypatch.setattr(provider._forecaster.model, "forecast", capture_model_input)
+    result = provider.forecast({"recent_windows": supplied})
+
+    expected = supplied.sort_values("window_start").tail(5)[FEATURE_COLS].to_numpy(
+        dtype="float32"
+    )
+    assert result.forecast_status == "ready"
+    assert len(captured) == 1
+    # Fixture scaler mean=0 and scale=1, so these are the exact model inputs.
+    import numpy as np
+
+    np.testing.assert_array_equal(captured[0], expected)
+
+
 def test_provider_reports_insufficient_or_nonconsecutive_history_without_scores(tmp_path):
     provider = RealWorldModelProvider(_write_artifact(tmp_path))
 
@@ -131,6 +166,21 @@ def test_real_provider_requires_weights_and_adjacent_metadata(tmp_path):
     weights = _write_artifact(tmp_path)
     weights.with_name("world_model_meta.json").unlink()
     with pytest.raises(FileNotFoundError, match="World Model metadata not found"):
+        RealWorldModelProvider(weights)
+
+
+def test_real_provider_rejects_malformed_artifacts_with_clear_errors(tmp_path):
+    weights = _write_artifact(tmp_path)
+    weights.write_bytes(b"not a torch checkpoint")
+    with pytest.raises(ValueError, match="Invalid World Model artifact"):
+        RealWorldModelProvider(weights)
+
+    weights = _write_artifact(tmp_path)
+    metadata_path = weights.with_name("world_model_meta.json")
+    metadata = json.loads(metadata_path.read_text())
+    metadata["feature_columns"] = list(reversed(FEATURE_COLS))
+    metadata_path.write_text(json.dumps(metadata))
+    with pytest.raises(ValueError, match="Invalid World Model artifact"):
         RealWorldModelProvider(weights)
 
 
@@ -167,6 +217,65 @@ def test_csv_analysis_passes_window_rows_to_real_provider(tmp_path):
     assert len(result.forecast.future_attack_probabilities) == 3
 
 
+def test_pcap_analysis_passes_generated_pair_windows_to_real_provider(tmp_path):
+    weights = _write_artifact(tmp_path)
+    pcap_path = tmp_path / "five_windows.pcap"
+    base = datetime(2025, 1, 1, tzinfo=timezone.utc).timestamp()
+    packets = []
+    for index in range(5):
+        packet = (
+            Ether()
+            / IP(src="192.0.2.10", dst="198.51.100.20")
+            / TCP(sport=50000 + index, dport=443, flags="F")
+            / Raw(load=b"payload")
+        )
+        packet.time = base + 1 + 30 * index
+        packets.append(packet)
+    wrpcap(str(pcap_path), packets)
+
+    result = run_analysis(pcap_path, create_production_orchestrator(weights))
+
+    assert result.forecast is not None
+    assert result.forecast.source == "real"
+    assert result.forecast.forecast_kind == "attack_probability"
+    assert result.forecast.forecast_status == "ready"
+    assert result.forecast.forecast_horizon_steps == 3
+
+
+def test_rolling_processing_pipeline_windows_reach_real_provider(tmp_path):
+    provider = RealWorldModelProvider(_write_artifact(tmp_path))
+    emitted_rows = []
+    pipeline = ProcessingPipeline(
+        on_window_features=lambda rows: emitted_rows.extend(rows)
+    )
+    base = datetime(2025, 1, 1, tzinfo=timezone.utc).timestamp()
+
+    for index in range(5):
+        pipeline.ingest(
+            ParsedPacket(
+                timestamp=base + 1 + 30 * index,
+                src_ip="192.0.2.10",
+                dst_ip="198.51.100.20",
+                protocol="TCP",
+                packet_length=60,
+                payload_length=20,
+                src_port=50000 + index,
+                dst_port=443,
+                tcp_flags="F",
+            )
+        )
+    pipeline.flush()
+
+    assert len(emitted_rows) == 5
+    result = AnalysisOrchestrator(world_model_provider=provider).analyze(
+        [], input_source="live:synthetic-rolling", recent_windows=emitted_rows
+    )
+    assert result.forecast is not None
+    assert result.forecast.source == "real"
+    assert result.forecast.forecast_status == "ready"
+    assert len(result.forecast.future_attack_probabilities) == 3
+
+
 def test_real_forecast_insufficient_history_is_visible_as_analysis_warning(tmp_path):
     orchestrator = AnalysisOrchestrator(
         world_model_provider=RealWorldModelProvider(_write_artifact(tmp_path))
@@ -179,3 +288,18 @@ def test_real_forecast_insufficient_history_is_visible_as_analysis_warning(tmp_p
     assert result.forecast.forecast_status == "insufficient_history"
     assert result.forecast.future_attack_probabilities == []
     assert any("requires 5" in warning for warning in result.warnings)
+
+
+def test_invalid_window_schema_degrades_to_analysis_warning(tmp_path):
+    orchestrator = AnalysisOrchestrator(
+        world_model_provider=RealWorldModelProvider(_write_artifact(tmp_path))
+    )
+    invalid_windows = _windows().drop(columns=[FEATURE_COLS[0]])
+
+    result = orchestrator.analyze(
+        [_event()], input_source="integration-test", recent_windows=invalid_windows
+    )
+
+    assert result.forecast is None
+    assert result.risk is not None
+    assert any("forecast provider failed" in warning for warning in result.warnings)
