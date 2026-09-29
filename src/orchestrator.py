@@ -212,6 +212,21 @@ class AnalysisOrchestrator:
             return None
 
 
+def build_production_orchestrator(internal_networks=None) -> AnalysisOrchestrator:
+    """Orchestrator with the real MITRE mapper and provider wired in."""
+    from src.correlation.mitre_stage_mapper import (
+        DEFAULT_INTERNAL_NETWORKS,
+        MitreStageMapper,
+    )
+    from src.providers.real_mitre_provider import RealMitreProvider
+
+    mapper = MitreStageMapper(internal_networks or DEFAULT_INTERNAL_NETWORKS)
+    return AnalysisOrchestrator(
+        stage_mapper=mapper,
+        mitre_provider=RealMitreProvider(mapper),
+    )
+
+
 def run_analysis(
     input_path: Union[str, Path],
     orchestrator: Optional[AnalysisOrchestrator] = None,
@@ -234,7 +249,7 @@ def run_analysis(
         )
 
     suffix = path.suffix.lower()
-    orchestrator = orchestrator or AnalysisOrchestrator()
+    orchestrator = orchestrator or build_production_orchestrator()
 
     if suffix == ".csv":
         from src.ingestion.csv_adapter import build_events_from_csv
