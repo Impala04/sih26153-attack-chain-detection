@@ -1,3 +1,5 @@
+import pytest
+
 from src.orchestrator import build_production_orchestrator
 from src.processing.events import DetectionEvent
 
@@ -13,3 +15,14 @@ def test_production_orchestrator_uses_real_mitre():
     assert {m.technique_id for m in result.mitre} >= {"T1595"}
     assert all(m.source == "real" for m in result.mitre)
     assert result.attack_chains[0]["current_stage"] == "Reconnaissance"
+
+
+def test_production_orchestrator_requires_real_world_model(monkeypatch):
+    import src.providers.world_model_provider as providers
+
+    def unavailable(*args, **kwargs):
+        raise RuntimeError("World Model unavailable")
+
+    monkeypatch.setattr(providers, "RealWorldModelProvider", unavailable)
+    with pytest.raises(RuntimeError, match="World Model unavailable"):
+        build_production_orchestrator()

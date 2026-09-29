@@ -4,11 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { DemoMode } from './demo/page'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Cell } from 'recharts'
 import { Activity, AlertTriangle, BarChart3, Bell, BrainCircuit, ChevronLeft, ChevronRight, CircleGauge, Database, FileWarning, LayoutDashboard, Menu, PlayCircle, RefreshCw, Search, Settings2, Shield, SlidersHorizontal, Target, TrendingUp, Upload, Zap } from 'lucide-react'
-import { PcapUpload } from '@/components/pcap-upload'
+import { LiveCapture } from '@/components/live-capture'
 
 type Host={id:string;label:string;risk:number;status:string;updated:string}; type Feature={name:string;impact:number}
 const API_BASE='http://localhost:8000'
-const nav=[['overview','Overview',LayoutDashboard],['monitoring','Live Monitoring',Activity],['dataset','Dataset Summary',Database],['benchmark','Benchmark Comparison',BarChart3],['threshold','Threshold Analysis',SlidersHorizontal],['training','Training Progress',BrainCircuit],['demo','Demo Mode',PlayCircle],['pcap','PCAP Upload',Upload]] as const
+const nav=[['overview','Overview',LayoutDashboard],['monitoring','Live Monitoring',Activity],['dataset','Dataset Summary',Database],['benchmark','Benchmark Comparison',BarChart3],['threshold','Threshold Analysis',SlidersHorizontal],['training','Training Progress',BrainCircuit],['demo','Demo Mode',PlayCircle],['analyze','Analyze CSV / PCAP',Upload]] as const
 const f1=[.0557,.0301,.0388,.0329,.0684,.0510,.0374,.0474,.0552,.0717,.0608,.0455,.0464,.0676,.0577], loss=[1.36,1.2738,1.2016,1.1411,1.0916,1.1178,1.0808,1.0445,.9994,.979,.9635,.9496,.9191,.8953,.8686]
 const thresholds=[['Recall ≥ 90%',.217,.018,.904],['Recall ≥ 80%',.462,.030,.801],['Recall ≥ 70%',.594,.042,.705],['Best F1',.765,.068,.486],['Default',.500,.033,.781]]
 const fallback=Array.from({length:12},(_,i)=>({time:`-${(11-i)*5}m`,risk:.42+Math.sin(i/2)*.08+i*.018}))
@@ -22,7 +22,10 @@ function Title({eyebrow,title,desc}:{eyebrow:string;title:string;desc:string}){r
 function Metric({label,value,sub}:{label:string;value:any;sub:string}){return <div className="metric-card"><span>{label}</span><b>{value}</b><small>{sub}</small></div>}
 
 export default function Page(){const [section,setSection]=useState('overview'),[hosts,setHosts]=useState<Host[]>([]),[selected,setSelected]=useState<string>(),[trend,setTrend]=useState<any[]>(fallback),[features,setFeatures]=useState<Feature[]>([]),[offline,setOffline]=useState(false),[loading,setLoading]=useState(true),[query,setQuery]=useState(''),[filter,setFilter]=useState('All'),[collapsed,setCollapsed]=useState(false),[mobile,setMobile]=useState(false),[updated,setUpdated]=useState('—')
- const load=useCallback(async()=>{try{const r=await fetch(`${API_BASE}/api/hosts`,{cache:'no-store'});if(!r.ok)throw 0;const d=normalize(await r.json());setHosts(d);setSelected(s=>s&&d.some(h=>h.id===s)?s:d[0]?.id);setOffline(false);setUpdated(new Date().toLocaleTimeString())}catch{setOffline(true)}finally{setLoading(false)}},[])
+ const Monitoring=(_:any)=><LiveCapture/>
+ const PcapUpload=()=>null
+ useEffect(()=>{if(section==='analyze')window.location.assign('/analyze')},[section])
+ const load=useCallback(async()=>{if(section==='monitoring'){setLoading(false);return}try{const r=await fetch(`${API_BASE}/api/hosts`,{cache:'no-store'});if(!r.ok)throw 0;const d=normalize(await r.json());setHosts(d);setSelected(s=>s&&d.some(h=>h.id===s)?s:d[0]?.id);setOffline(false);setUpdated(new Date().toLocaleTimeString())}catch{setOffline(true)}finally{setLoading(false)}},[section])
  useEffect(()=>{load();const t=setInterval(load,3000);return()=>clearInterval(t)},[load])
  useEffect(()=>{if(!selected)return;Promise.all([fetch(`${API_BASE}/api/hosts/${encodeURIComponent(selected)}/trend`),fetch(`${API_BASE}/api/hosts/${encodeURIComponent(selected)}/explain`)]).then(async([a,b])=>{if(a.ok){const d=await a.json(),rows=Array.isArray(d)?d:d?.trend||d?.data||[];setTrend(rows.map((x:any,i:number)=>({time:x.time??x.timestamp??i+1,risk:Number(x.risk_score??x.risk??x.score??x.value??0)})))}if(b.ok){const d=await b.json(),rows=d?.top_features||d?.features||[];setFeatures(rows.map((x:any)=>({name:String(x.feature??x.name??x.label??'Risk factor'),impact:Number(x.impact??x.value??x.contribution??0)})))}}).catch(()=>{})},[selected])
  const list=useMemo(()=>hosts.filter(h=>(filter==='All'||sev(h.risk)===filter)&&`${h.label} ${h.id}`.toLowerCase().includes(query.toLowerCase())).sort((a,b)=>b.risk-a.risk),[hosts,filter,query]), current=hosts.find(h=>h.id===selected)||list[0], critical=hosts.filter(h=>h.risk>=.8).length,high=hosts.filter(h=>h.risk>=.6&&h.risk<.8).length,avg=hosts.length?hosts.reduce((a,h)=>a+h.risk,0)/hosts.length:0
