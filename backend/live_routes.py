@@ -23,6 +23,21 @@ def _idle_status():
             "events_buffered": 0, "source": "live", "target": _target}
 
 
+def _demo_detection_packets():
+    """Use the project's deterministic detection-test packets, never invented events."""
+    from src.capture.mock_packets import make_tcp_packet
+    from src.capture.packet_parser import parse_packet
+
+    packets = []
+    for index, port in enumerate(range(20, 30)):
+        parsed = parse_packet(
+            make_tcp_packet("10.0.0.5", "10.0.0.10", 40000 + index, port, "S")
+        )
+        if parsed is not None:
+            packets.append(parsed)
+    return packets
+
+
 def _resolve_target(target: str) -> dict:
     target = target.strip()
     try:
@@ -55,7 +70,7 @@ def _relevant_events():
 
 @router.post("/start")
 def start(iface: Optional[str] = None, bpf_filter: Optional[str] = None,
-          target: Optional[str] = None):
+          target: Optional[str] = None, demo: bool = False):
     global _sensor, _target
     if _sensor is not None and _sensor.status()["running"]:
         return {**_sensor.status(), "target": _target}
@@ -63,12 +78,20 @@ def start(iface: Optional[str] = None, bpf_filter: Optional[str] = None,
     if resolved and not bpf_filter:
         bpf_filter = " or ".join(f"host {ip}" for ip in resolved["ips"])
     _sensor = LiveSensor(iface=iface, bpf_filter=bpf_filter)
-    _target = resolved
+    _target = (resolved if not demo else {
+        "input": "CyberFlux detection-test replay",
+        "ips": ["10.0.0.5", "10.0.0.10"],
+        "mode": "demo_test_capture",
+    })
     try:
-        _sensor.start()
+        if demo:
+            _sensor.start_replay(_demo_detection_packets())
+        else:
+            _sensor.start()
     except LiveSensorError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
-    return {**_sensor.status(), "target": _target}
+    return {**_sensor.status(), "target": _target,
+            "source": "demo_test_capture" if demo else "live"}
 
 
 @router.post("/stop")

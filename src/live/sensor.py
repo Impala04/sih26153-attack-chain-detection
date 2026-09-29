@@ -121,6 +121,17 @@ class LiveSensor:
             )
             self._flush_thread.start()
 
+    def start_replay(self, packets) -> None:
+        """Process a finite, explicitly supplied test capture without raw capture."""
+        with self._lifecycle:
+            if self._running:
+                raise LiveSensorError("Live sensor is already running")
+            self._error = None
+            self._running = True
+        for packet in packets:
+            self.handle_packet(packet)
+        self.flush()
+
     def stop(self) -> None:
         with self._lifecycle:
             self._stop.set()

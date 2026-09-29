@@ -91,7 +91,10 @@ export function AnalysisUpload() {
     const body = new FormData()
     body.append('file', file)
     try {
-      const response = await fetch(`${API_BASE}/api/analyze`, { method: 'POST', body })
+      const controller = new AbortController()
+      const timer = window.setTimeout(() => controller.abort(), 50_000)
+      const response = await fetch(`${API_BASE}/api/analyze`, { method: 'POST', body, signal: controller.signal })
+      window.clearTimeout(timer)
       const payload = await response.json().catch(() => null)
       if (!response.ok) {
         throw new Error(
@@ -102,7 +105,7 @@ export function AnalysisUpload() {
     } catch (cause) {
       setError(
         cause instanceof TypeError
-          ? 'Unable to reach the analysis API at localhost:8000.'
+          ? 'Analysis timed out or the API is unavailable. Use a smaller windowed CSV, then try again.'
           : cause instanceof Error
             ? cause.message
             : 'Analysis failed.'

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 import tempfile
+import asyncio
 from functools import lru_cache
 from pathlib import Path
 
@@ -18,6 +19,7 @@ if str(ROOT) not in sys.path:
 router = APIRouter()
 
 MAX_UPLOAD_BYTES = 100 * 1024 * 1024
+ANALYSIS_TIMEOUT_SECONDS = 45
 ANALYSIS_SUFFIXES = {".csv", ".pcap", ".pcapng"}
 
 
@@ -64,9 +66,15 @@ async def analyze_upload(file: UploadFile = File(...)):
                     f"{exc}",
                 ) from exc
             try:
-                result = await run_in_threadpool(
-                    run_analysis, temp_path, orchestrator
+                result = await asyncio.wait_for(
+                    run_in_threadpool(run_analysis, temp_path, orchestrator),
+                    timeout=ANALYSIS_TIMEOUT_SECONDS,
                 )
+            except TimeoutError as exc:
+                raise HTTPException(
+                    504,
+                    f"Analysis exceeded {ANALYSIS_TIMEOUT_SECONDS} seconds. Use a smaller, windowed CSV or capture.",
+                ) from exc
             except (PcapReadError, ValueError) as exc:
                 raise HTTPException(400, str(exc)) from exc
             except Exception as exc:

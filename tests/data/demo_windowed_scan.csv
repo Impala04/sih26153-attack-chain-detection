@@ -1,0 +1,2 @@
+src_ip,dst_ip,window_start,connection_count,unique_destinations,unique_ports,total_fwd_packets,total_bwd_packets,total_bytes_fwd,total_bytes_bwd,avg_flow_duration,max_flow_duration,std_flow_duration,max_bytes_total,std_bytes_total,max_packets_total,bytes_per_connection,flows_per_second,syn_ratio,connection_attempt_rate,packets_per_second,bytes_per_second
+10.0.0.5,10.0.0.10,2025-01-01 12:00:00,10,1,10,10,0,400,0,1,1,0,40,0,1,40,0.333,0.8,0.333,0.333,13.333

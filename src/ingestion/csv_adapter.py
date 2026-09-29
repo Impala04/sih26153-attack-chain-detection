@@ -35,6 +35,7 @@ from src.processing.events import DetectionEvent
 from src.processing.feature_extractor import PHASE1_FEATURE_COLUMNS
 
 REQUIRED_BASE_COLUMNS = ["src_ip", "dst_ip", "window_start"]
+MAX_CSV_ROWS = 5_000
 REQUIRED_FEATURE_COLUMNS = [c for c in PHASE1_FEATURE_COLUMNS if c != "lateral_move_flag"]
 OPTIONAL_DETECTION_COLUMNS = (
     "unique_dst_ports",
@@ -47,13 +48,25 @@ OPTIONAL_DETECTION_COLUMNS = (
 
 
 def _load_and_validate(path: str) -> pd.DataFrame:
-    df = pd.read_csv(path)
+    try:
+        df = pd.read_csv(path, nrows=MAX_CSV_ROWS + 1, on_bad_lines="error")
+    except (UnicodeDecodeError, pd.errors.ParserError) as exc:
+        raise ValueError(
+            "CSV could not be parsed. Upload a UTF-8, comma-delimited CyberFlux windowed-feature CSV."
+        ) from exc
+    if len(df) > MAX_CSV_ROWS:
+        raise ValueError(
+            f"CSV has more than {MAX_CSV_ROWS:,} rows. Split it into smaller windowed-feature files before analysis."
+        )
     df.columns = [c.strip() for c in df.columns]
 
     required = REQUIRED_BASE_COLUMNS + REQUIRED_FEATURE_COLUMNS
     missing = [c for c in required if c not in df.columns]
     if missing:
-        raise ValueError(f"CSV is missing required columns: {missing}")
+        raise ValueError(
+            "Unsupported CSV format. CyberFlux requires windowed features including "
+            f"{', '.join(REQUIRED_BASE_COLUMNS)} and {', '.join(REQUIRED_FEATURE_COLUMNS)}. Missing: {missing}"
+        )
 
     return df
 
