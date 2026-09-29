@@ -221,19 +221,26 @@ def load_world_model(
     if not metadata_path.is_file():
         raise FileNotFoundError(f"World Model metadata not found: {metadata_path}")
 
-    metadata = json.loads(metadata_path.read_text())
-    model_config = metadata.get("model_config")
-    if not isinstance(model_config, dict):
-        raise ValueError("Model metadata has no model_config")
+    try:
+        metadata = json.loads(metadata_path.read_text())
+        if not isinstance(metadata, dict):
+            raise ValueError("metadata root must be a JSON object")
+        model_config = metadata.get("model_config")
+        if not isinstance(model_config, dict):
+            raise ValueError("Model metadata has no model_config")
 
-    checkpoint = torch.load(weights_path, map_location="cpu")
-    if not isinstance(checkpoint, dict) or "state_dict" not in checkpoint:
-        raise ValueError("Model checkpoint does not contain a state_dict")
-    if checkpoint.get("model_config") != model_config:
-        raise ValueError("Checkpoint model_config does not match metadata")
+        checkpoint = torch.load(weights_path, map_location="cpu")
+        if not isinstance(checkpoint, dict) or "state_dict" not in checkpoint:
+            raise ValueError("Model checkpoint does not contain a state_dict")
+        if checkpoint.get("model_config") != model_config:
+            raise ValueError("Checkpoint model_config does not match metadata")
 
-    model = GRUWorldModel(**model_config)
-    model.load_state_dict(checkpoint["state_dict"])
-    model.eval()
-
-    return WorldModelForecaster(model=model, metadata=metadata)
+        model = GRUWorldModel(**model_config)
+        model.load_state_dict(checkpoint["state_dict"])
+        model.eval()
+        return WorldModelForecaster(model=model, metadata=metadata)
+    except Exception as exc:  # noqa: BLE001 - convert artifact errors to API-safe config errors
+        raise ValueError(
+            "Invalid World Model artifact; expected compatible weights and "
+            f"metadata at {weights_path} and {metadata_path}: {exc}"
+        ) from exc

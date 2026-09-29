@@ -159,3 +159,15 @@ def test_analyze_returns_service_unavailable_when_real_model_is_missing(client, 
     response = _post(client, "flows.csv", _csv_bytes([_csv_row()]))
     assert response.status_code == 503
     assert "real World Model is unavailable" in response.json()["detail"]
+
+
+def test_analyze_returns_service_unavailable_for_invalid_model_artifact(client, monkeypatch):
+    from backend import analysis_routes
+
+    def invalid_model():
+        raise ValueError("Invalid World Model artifact")
+
+    monkeypatch.setattr(analysis_routes, "_production_orchestrator", invalid_model)
+    response = _post(client, "flows.csv", _csv_bytes([_csv_row()]))
+    assert response.status_code == 503
+    assert "Invalid World Model artifact" in response.json()["detail"]
