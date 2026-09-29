@@ -51,6 +51,8 @@ async def analyze_upload(file: UploadFile = File(...)):
                 result = await run_in_threadpool(run_analysis, temp_path)
             except (PcapReadError, ValueError) as exc:
                 raise HTTPException(400, str(exc)) from exc
+            except Exception as exc:
+                raise HTTPException(500, f"Analysis failed: {type(exc).__name__}: {exc}") from exc
     finally:
         await file.close()
 
