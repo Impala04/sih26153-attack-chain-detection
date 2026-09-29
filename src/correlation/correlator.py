@@ -1,5 +1,7 @@
 """Correlation of processing detection events into attack chains."""
 
+from __future__ import annotations
+
 from typing import List, Optional
 from uuid import NAMESPACE_URL, uuid5
 

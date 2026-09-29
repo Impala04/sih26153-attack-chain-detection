@@ -16,7 +16,11 @@ are genuine and which are stand-ins.
 from .explainer_provider import ExplainerProvider, MockExplainer
 from .mitre_provider import MitreProvider, MockMitreMapper
 from .risk_provider import MockRiskEngine, RiskProvider
-from .world_model_provider import MockWorldModel, WorldModelProvider
+from .world_model_provider import (
+    MockWorldModel,
+    RealWorldModelProvider,
+    WorldModelProvider,
+)
 
 __all__ = [
     "ExplainerProvider",
@@ -27,4 +31,5 @@ __all__ = [
     "MockRiskEngine",
     "WorldModelProvider",
     "MockWorldModel",
+    "RealWorldModelProvider",
 ]

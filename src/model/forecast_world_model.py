@@ -13,6 +13,10 @@ from src.model.train import FEATURE_COLS
 from src.model.world_model import GRUWorldModel
 
 
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_MODEL_PATH = REPOSITORY_ROOT / "models" / "world_model" / "world_model.pt"
+
+
 @dataclass
 class ForecastStep:
     """Prediction for one future 30-second window."""
@@ -204,10 +208,12 @@ class WorldModelForecaster:
 
 
 def load_world_model(
-    model_path: Union[str, Path] = "models/world_model/world_model.pt",
+    model_path: Union[str, Path] = DEFAULT_MODEL_PATH,
 ) -> WorldModelForecaster:
     """Load model weights and adjacent world_model_meta.json metadata."""
     weights_path = Path(model_path)
+    if not weights_path.is_absolute():
+        weights_path = REPOSITORY_ROOT / weights_path
     metadata_path = weights_path.with_name("world_model_meta.json")
 
     if not weights_path.is_file():

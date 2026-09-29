@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 import tempfile
+from functools import lru_cache
 from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, Response, UploadFile
@@ -20,6 +21,14 @@ MAX_UPLOAD_BYTES = 100 * 1024 * 1024
 ANALYSIS_SUFFIXES = {".csv", ".pcap", ".pcapng"}
 
 
+@lru_cache(maxsize=1)
+def _production_orchestrator():
+    """Load the real World Model once per API worker; never use a mock here."""
+    from src.orchestrator import create_production_orchestrator
+
+    return create_production_orchestrator()
+
+
 @router.post("/api/analyze")
 async def analyze_upload(file: UploadFile = File(...)):
     from src.ingestion.pcap_reader import PcapReadError  # noqa: E402
@@ -34,9 +43,7 @@ async def analyze_upload(file: UploadFile = File(...)):
     try:
         # Temp dir is created and removed by this code only; the upload keeps
         # its original name so input_source reads e.g. "pcap:scan.pcap".
-        with tempfile.TemporaryDirectory(
-            prefix="cyberflux-analyze-", ignore_cleanup_errors=True
-        ) as temp_dir:
+        with tempfile.TemporaryDirectory(prefix="cyberflux-analyze-") as temp_dir:
             temp_path = Path(temp_dir) / filename
             size = 0
             with temp_path.open("wb") as out:
@@ -48,7 +55,18 @@ async def analyze_upload(file: UploadFile = File(...)):
             if size == 0:
                 raise HTTPException(400, "The uploaded file is empty")
             try:
-                result = await run_in_threadpool(run_analysis, temp_path)
+                orchestrator = _production_orchestrator()
+            except (FileNotFoundError, RuntimeError, ValueError) as exc:
+                raise HTTPException(
+                    503,
+                    "The real World Model is unavailable. Install its dependencies "
+                    "and supply the trained weights plus adjacent metadata: "
+                    f"{exc}",
+                ) from exc
+            try:
+                result = await run_in_threadpool(
+                    run_analysis, temp_path, orchestrator
+                )
             except (PcapReadError, ValueError) as exc:
                 raise HTTPException(400, str(exc)) from exc
     finally:

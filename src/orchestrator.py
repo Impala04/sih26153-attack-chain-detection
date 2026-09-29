@@ -110,6 +110,12 @@ class AnalysisOrchestrator:
                 ),
             },
         )
+        if (
+            forecast is not None
+            and forecast.forecast_status == "insufficient_history"
+            and forecast.warning
+        ):
+            warnings.append(forecast.warning)
 
         mitre = self._safe_call(
             "mitre",
@@ -211,6 +217,22 @@ class AnalysisOrchestrator:
             return None
 
 
+def create_production_orchestrator(
+    model_path: Optional[Union[str, Path]] = None,
+) -> AnalysisOrchestrator:
+    """Build an orchestrator that requires the real trained World Model.
+
+    This factory deliberately does not fall back to ``MockWorldModel`` when
+    dependencies or artifacts are missing. Unit tests may continue creating
+    ``AnalysisOrchestrator()`` directly to use deterministic mocks.
+    """
+    from src.providers.world_model_provider import RealWorldModelProvider
+
+    return AnalysisOrchestrator(
+        world_model_provider=RealWorldModelProvider(model_path=model_path)
+    )
+
+
 def run_analysis(
     input_path: Union[str, Path],
     orchestrator: Optional[AnalysisOrchestrator] = None,
@@ -237,10 +259,18 @@ def run_analysis(
 
     if suffix == ".csv":
         from src.ingestion.csv_adapter import build_events_from_csv
+        from src.providers.world_model_provider import RealWorldModelProvider
 
         logger.info("run_analysis: loading CSV input %s", path)
 
         detections = build_events_from_csv(str(path))
+        recent_windows = None
+        if isinstance(orchestrator.world_model_provider, RealWorldModelProvider):
+            import pandas as pd
+
+            # Keep the full temporal feature frame for forecasting; the CSV
+            # adapter's DetectionEvents include only rows that triggered a rule.
+            recent_windows = pd.read_csv(path)
 
         logger.info(
             "run_analysis: CSV adapter produced %d detection events",
@@ -250,6 +280,7 @@ def run_analysis(
         return orchestrator.analyze(
             detections,
             input_source=f"csv:{path.name}",
+            recent_windows=recent_windows,
         )
 
     if suffix in {".pcap", ".pcapng"}:
@@ -257,10 +288,37 @@ def run_analysis(
         from src.processing.pipeline import ProcessingPipeline
         from src.model.event_scoring import score_detection_event
         from src.model.score import DEFAULT_MODEL_PATH
+        from src.providers.world_model_provider import RealWorldModelProvider
 
         logger.info("run_analysis: loading PCAP input %s", path)
 
-        pipeline = ProcessingPipeline()
+        real_provider = (
+            orchestrator.world_model_provider
+            if isinstance(orchestrator.world_model_provider, RealWorldModelProvider)
+            else None
+        )
+        recent_rows_by_pair: Dict[tuple, List[Dict[str, Any]]] = {}
+
+        def capture_window_features(rows: List[Dict[str, Any]]) -> None:
+            if real_provider is None:
+                return
+            import pandas as pd
+
+            for row in rows:
+                key = (str(row["src_ip"]), str(row["dst_ip"]))
+                pair_rows = recent_rows_by_pair.setdefault(key, [])
+                current_time = pd.to_datetime(row["window_start"], utc=True)
+                if pair_rows:
+                    previous_time = pd.to_datetime(
+                        pair_rows[-1]["window_start"], utc=True
+                    )
+                    if (current_time - previous_time).total_seconds() > 300:
+                        pair_rows.clear()
+                pair_rows.append(row)
+                if len(pair_rows) > real_provider.sequence_length:
+                    del pair_rows[:-real_provider.sequence_length]
+
+        pipeline = ProcessingPipeline(on_window_features=capture_window_features)
         detections = []
 
         for packet in iter_pcap(path):
@@ -284,6 +342,11 @@ def run_analysis(
         return orchestrator.analyze(
             detections,
             input_source=f"pcap:{path.name}",
+            recent_windows=(
+                [row for rows in recent_rows_by_pair.values() for row in rows]
+                if real_provider is not None
+                else None
+            ),
         )
 
     raise ValueError(
