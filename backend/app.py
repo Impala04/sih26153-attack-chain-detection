@@ -22,7 +22,10 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from risk_engine import calculate_risk
+try:
+    from risk_engine import calculate_risk
+except ImportError:
+    from backend.risk_engine import calculate_risk
 
 
 ROOT = Path(__file__).resolve().parent.parent
