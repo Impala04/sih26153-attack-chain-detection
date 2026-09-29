@@ -117,7 +117,7 @@ def densify_pair_windows(
         raise ValueError("window_start contains missing or invalid timestamps")
 
     step_ns = window_seconds * 1_000_000_000
-    if (work["window_start"].astype("int64") % step_ns != 0).any():
+    if (work["window_start"].astype("datetime64[ns, UTC]").astype("int64") % step_ns != 0).any():
         raise ValueError(
             f"window_start values must align to {window_seconds}-second boundaries"
         )

@@ -24,9 +24,9 @@ ANALYSIS_SUFFIXES = {".csv", ".pcap", ".pcapng"}
 @lru_cache(maxsize=1)
 def _production_orchestrator():
     """Load the real World Model once per API worker; never use a mock here."""
-    from src.orchestrator import create_production_orchestrator
+    from src.orchestrator import build_production_orchestrator
 
-    return create_production_orchestrator()
+    return build_production_orchestrator()
 
 
 @router.post("/api/analyze")
@@ -69,6 +69,8 @@ async def analyze_upload(file: UploadFile = File(...)):
                 )
             except (PcapReadError, ValueError) as exc:
                 raise HTTPException(400, str(exc)) from exc
+            except Exception as exc:
+                raise HTTPException(500, f"Analysis failed: {type(exc).__name__}: {exc}") from exc
     finally:
         await file.close()
 

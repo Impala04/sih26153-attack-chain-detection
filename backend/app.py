@@ -38,7 +38,8 @@ SCENARIOS = {
 }
 
 app = FastAPI(title="CyberFlux Demo API")
-
+from backend.live_routes import router as live_router
+app.include_router(live_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

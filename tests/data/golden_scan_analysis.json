@@ -1073,18 +1073,18 @@
   "input_source": "pcap:golden_scan.pcap",
   "mitre": [
     {
-      "confidence": 0.84,
-      "source": "mock",
-      "tactic": "Command and Control",
-      "technique_id": "T1071",
-      "technique_name": "Application Layer Protocol"
+      "confidence": 0.55,
+      "source": "real",
+      "tactic": "Lateral Movement",
+      "technique_id": "T1021.002",
+      "technique_name": "Remote Services: SMB/Windows Admin Shares"
     },
     {
-      "confidence": 0.83,
-      "source": "mock",
-      "tactic": "Lateral Movement",
-      "technique_id": "T1021",
-      "technique_name": "Remote Services"
+      "confidence": 0.5429,
+      "source": "real",
+      "tactic": "Discovery",
+      "technique_id": "T1046",
+      "technique_name": "Network Service Discovery"
     }
   ],
   "risk": {
@@ -1093,7 +1093,7 @@
       "severity",
       "source"
     ],
-    "source": "mock"
+    "source": "real"
   },
   "warnings": []
 }

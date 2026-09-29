@@ -225,7 +225,7 @@ node_modules/
 .next/
 out/
 
-cat >> .gitignore <<'EOF'
+frontend/tsconfig.tsbuildinfo
 
 # Track the World Model inference artifacts
 !models/
@@ -234,4 +234,3 @@ models/*
 models/world_model/*
 !models/world_model/world_model.pt
 !models/world_model/world_model_meta.json
-EOF

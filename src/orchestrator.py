@@ -30,6 +30,7 @@ from src.processing.events import DetectionEvent
 from src.providers.explainer_provider import ExplainerProvider, MockExplainer
 from src.providers.mitre_provider import MitreProvider, MockMitreMapper
 from src.providers.risk_provider import MockRiskEngine, RiskProvider
+from src.providers.real_risk_engine import RealRiskEngine
 from src.providers.world_model_provider import WorldModelProvider, MockWorldModel
 
 logger = logging.getLogger(__name__)
@@ -64,7 +65,7 @@ class AnalysisOrchestrator:
         self.world_model_provider = world_model_provider or MockWorldModel()
         self.mitre_provider = mitre_provider or MockMitreMapper()
         self.explainer_provider = explainer_provider or MockExplainer()
-        self.risk_provider = risk_provider or MockRiskEngine()
+        self.risk_provider = risk_provider or RealRiskEngine()
 
     def analyze(
         self,
@@ -217,20 +218,46 @@ class AnalysisOrchestrator:
             return None
 
 
+def build_production_orchestrator(
+    internal_networks=None,
+    model_path: Optional[Union[str, Path]] = None,
+    require_world_model: bool = False,
+) -> AnalysisOrchestrator:
+    """Orchestrator with real MITRE, real risk and the real World Model.
+
+    If the World Model cannot load, this logs a warning and uses MockWorldModel
+    (the forecast then reports source "mock"), unless require_world_model=True,
+    in which case the error is raised.
+    """
+    from src.correlation.mitre_stage_mapper import (
+        DEFAULT_INTERNAL_NETWORKS,
+        MitreStageMapper,
+    )
+    from src.providers.real_mitre_provider import RealMitreProvider
+
+    mapper = MitreStageMapper(internal_networks or DEFAULT_INTERNAL_NETWORKS)
+    try:
+        from src.providers.world_model_provider import RealWorldModelProvider
+
+        world_model = RealWorldModelProvider(model_path=model_path)
+    except Exception as exc:  # noqa: BLE001
+        if require_world_model:
+            raise
+        logger.warning("Real World Model unavailable, using mock forecast: %s", exc)
+        world_model = MockWorldModel()
+
+    return AnalysisOrchestrator(
+        stage_mapper=mapper,
+        world_model_provider=world_model,
+        mitre_provider=RealMitreProvider(mapper),
+    )
+
+
 def create_production_orchestrator(
     model_path: Optional[Union[str, Path]] = None,
 ) -> AnalysisOrchestrator:
-    """Build an orchestrator that requires the real trained World Model.
-
-    This factory deliberately does not fall back to ``MockWorldModel`` when
-    dependencies or artifacts are missing. Unit tests may continue creating
-    ``AnalysisOrchestrator()`` directly to use deterministic mocks.
-    """
-    from src.providers.world_model_provider import RealWorldModelProvider
-
-    return AnalysisOrchestrator(
-        world_model_provider=RealWorldModelProvider(model_path=model_path)
-    )
+    """Strict variant: requires the real trained World Model (no mock fallback)."""
+    return build_production_orchestrator(model_path=model_path, require_world_model=True)
 
 
 def run_analysis(
@@ -245,7 +272,7 @@ def run_analysis(
         ProcessingPipeline. Raises PcapReadError for a corrupt capture.
 
     ``orchestrator`` can be supplied for testing (e.g. with mock providers
-    already configured); defaults to a fresh AnalysisOrchestrator() otherwise.
+    already configured); defaults to build_production_orchestrator() otherwise.
     """
     path = Path(input_path)
 
@@ -255,7 +282,7 @@ def run_analysis(
         )
 
     suffix = path.suffix.lower()
-    orchestrator = orchestrator or AnalysisOrchestrator()
+    orchestrator = orchestrator or build_production_orchestrator()
 
     if suffix == ".csv":
         from src.ingestion.csv_adapter import build_events_from_csv
