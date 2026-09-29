@@ -25,7 +25,7 @@ from src.model.train import (
     LATERAL_MOVE_THRESHOLD,
 )
 
-DEFAULT_MODEL_PATH = "models/isolation_forest.joblib"
+DEFAULT_MODEL_PATH = str(Path(__file__).resolve().parents[2] / "models" / "isolation_forest.joblib")
 
 
 def load_model_and_features(model_path: str = DEFAULT_MODEL_PATH):
