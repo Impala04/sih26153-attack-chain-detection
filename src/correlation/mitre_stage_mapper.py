@@ -25,6 +25,7 @@ Design rules
 from dataclasses import dataclass
 from ipaddress import ip_address, ip_network
 import logging
+import math
 from typing import Any, Dict, Iterable, List, Optional, Sequence
 
 from src.processing.events import DetectionEvent
@@ -213,7 +214,7 @@ class MitreStageMapper(StageMapper):
     def _first_number(features: Dict[str, Any], *names: str) -> float:
         for name in names:
             value = features.get(name)
-            if isinstance(value, (int, float)) and value:
+            if isinstance(value, (int, float)) and math.isfinite(value) and value:
                 return float(value)
         return 0.0
 
@@ -290,7 +291,7 @@ class MitreStageMapper(StageMapper):
         port = self._first_number(event.features, "dst_port")
         if not port:
             raw = event.metadata.get("dst_port")
-            port = float(raw) if isinstance(raw, (int, float)) else 0.0
+            port = float(raw) if isinstance(raw, (int, float)) and math.isfinite(raw) else 0.0
         fan_out = int(self._first_number(event.features, "unique_destinations", "unique_dst_ips"))
 
         if self._is_internal(event.src_ip) is False:
