@@ -11,7 +11,7 @@ const API_BASE='http://localhost:8000'
 const nav=[['overview','Overview',LayoutDashboard],['monitoring','Live Monitoring',Activity],['dataset','Dataset Summary',Database],['benchmark','Benchmark Comparison',BarChart3],['threshold','Threshold Analysis',SlidersHorizontal],['training','Training Progress',BrainCircuit],['demo','Demo Mode',PlayCircle],['analyze','Analyze CSV / PCAP',Upload]] as const
 const f1=[.0557,.0301,.0388,.0329,.0684,.0510,.0374,.0474,.0552,.0717,.0608,.0455,.0464,.0676,.0577], loss=[1.36,1.2738,1.2016,1.1411,1.0916,1.1178,1.0808,1.0445,.9994,.979,.9635,.9496,.9191,.8953,.8686]
 const thresholds=[['Recall ≥ 90%',.217,.018,.904],['Recall ≥ 80%',.462,.030,.801],['Recall ≥ 70%',.594,.042,.705],['Best F1',.765,.068,.486],['Default',.500,.033,.781]]
-const fallback=Array.from({length:12},(_,i)=>({time:`-${(11-i)*5}m`,risk:.42+Math.sin(i/2)*.08+i*.018}))
+const fallback:any[]=[]
 const sev=(r:number)=>r>=.8?'Critical':r>=.6?'High':r>=.3?'Medium':'Low', pct=(r:number)=>`${Math.round(r*100)}%`
 function normalize(x:any):Host[]{const a=Array.isArray(x)?x:x?.hosts||x?.data||[];return a.map((h:any,i:number)=>({id:String(h.host_id??h.hostId??h.id??`HOST-${i+1}`),label:String(h.host_name??h.hostname??h.label??h.name??`Monitored host ${i+1}`),risk:Number(h.risk_score??h.risk??h.score??0),status:String(h.status??'Monitoring'),updated:new Date().toLocaleTimeString()})).filter((h:Host)=>Number.isFinite(h.risk))}
 function Tip({active,payload,label}:any){return active&&payload?.length?<div className="chart-tip"><span>{label}</span><b>{Number(payload[0].value).toFixed(3)}</b></div>:null}

@@ -130,7 +130,11 @@ def analysis():
     from src.orchestrator import build_production_orchestrator
     try:
         orchestrator = build_production_orchestrator()
-        result = orchestrator.analyze(items, input_source="live")
+        is_demo_replay = bool(_target and _target.get("mode") == "demo_test_capture")
+        result = orchestrator.analyze(
+            items,
+            input_source="demo_test_capture" if is_demo_replay else "live",
+        )
     except (FileNotFoundError, RuntimeError, ValueError) as exc:
         raise HTTPException(
             503,
@@ -145,5 +149,5 @@ def analysis():
         state = "no_observed_threat"
         message = ("No observed threat in the traffic captured so far. "
                    "This does not guarantee the target is safe.")
-    return {"source": "live", "state": state, "message": message,
+    return {"source": "demo_test_capture" if (_target and _target.get("mode") == "demo_test_capture") else "live", "state": state, "message": message,
             "target": _target, "result": data}
