@@ -1,5 +1,6 @@
 """Extract Phase 1-compatible features and live traffic diagnostics."""
 
+from collections import Counter
 from statistics import mean, stdev
 from typing import Dict, Iterable, List, Set, Tuple
 
@@ -122,6 +123,13 @@ class FeatureExtractor:
                 flow.key[2] for flow in flows if flow.key[2] is not None
             }
 
+            port_counts = Counter(
+                flow.key[3] for flow in flows if flow.key[3] is not None
+            )
+            dominant_dst_port = (
+                port_counts.most_common(1)[0][0] if port_counts else 0
+            )
+
             total_packets = sum(flow.packet_count for flow in flows)
             total_packet_bytes = sum(flow.total_bytes for flow in flows)
             syn_count = sum(flow.syn_count for flow in flows)
@@ -166,6 +174,7 @@ class FeatureExtractor:
                 "unique_dst_ips": unique_destinations,
                 "unique_dst_ports": len(unique_dst_ports),
                 "unique_src_ports": len(unique_src_ports),
+                "dst_port": dominant_dst_port,
                 "connection_attempt_rate": syn_count / seconds,
                 "avg_packet_size": mean(packet_sizes) if packet_sizes else 0.0,
                 "std_packet_size": _sample_std(packet_sizes),
