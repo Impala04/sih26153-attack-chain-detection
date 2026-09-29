@@ -22,7 +22,10 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from risk_engine import calculate_risk
+try:
+    from risk_engine import calculate_risk
+except ImportError:
+    from backend.risk_engine import calculate_risk
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -42,6 +45,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+import sys  # noqa: E402
+
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from backend.analysis_routes import router as analysis_router  # noqa: E402
+
+app.include_router(analysis_router)
 
 MAX_PCAP_UPLOAD_BYTES = 100 * 1024 * 1024
 MAX_PCAP_RESPONSE_PACKETS = 10_000

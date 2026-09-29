@@ -1,0 +1,1074 @@
+{
+  "attack_chains": [
+    {
+      "chain_id": "<id-8>",
+      "confidence": 0.85,
+      "current_stage": "Lateral Movement",
+      "destination_hosts": [
+        "10.0.0.10",
+        "10.0.0.20",
+        "10.0.0.21",
+        "10.0.0.22",
+        "10.0.0.23",
+        "10.0.0.24",
+        "10.0.0.25"
+      ],
+      "events": [
+        {
+          "confidence": 0.5429,
+          "detection_type": "potential_network_scan",
+          "dst_ip": "10.0.0.10",
+          "event_id": "<id-1>",
+          "evidence": [
+            "10 distinct destination ports with SYN ratio 1.00"
+          ],
+          "features": {
+            "ack_count": 0,
+            "avg_flow_duration": 0.0,
+            "avg_packet_size": 54.0,
+            "bytes_per_connection": 0.0,
+            "bytes_per_second": 18.0,
+            "connection_attempt_rate": 0.3333,
+            "connection_count": 10,
+            "fin_count": 0,
+            "flow_count": 10,
+            "flows_per_second": 0.3333,
+            "lateral_move_flag": 0,
+            "max_bytes_total": 0.0,
+            "max_flow_duration": 0.0,
+            "max_packet_size": 54.0,
+            "max_packets_total": 1.0,
+            "min_packet_size": 54.0,
+            "packets_per_second": 0.3333,
+            "rst_count": 0,
+            "rst_ratio": 0.0,
+            "std_bytes_total": 0.0,
+            "std_flow_duration": 0.0,
+            "std_packet_size": 0.0,
+            "syn_count": 10,
+            "syn_ratio": 1.0,
+            "total_bwd_packets": 0,
+            "total_bytes": 540,
+            "total_bytes_bwd": 0,
+            "total_bytes_fwd": 0,
+            "total_fwd_packets": 10,
+            "total_packets": 10,
+            "unique_destinations": 1,
+            "unique_dst_ips": 1,
+            "unique_dst_ports": 10,
+            "unique_ports": 10,
+            "unique_src_ports": 10
+          },
+          "metadata": {
+            "ml_score": {
+              "anomaly_risk": 21.69,
+              "anomaly_score": 1,
+              "anomaly_score_raw": 0.1215,
+              "event_id": "<id-1>",
+              "explanation": "unavailable: rule-only text does not attribute the model prediction"
+            }
+          },
+          "src_ip": "10.0.0.5",
+          "timestamp": 1735732830.0,
+          "window_end": 1735732830.0,
+          "window_start": 1735732800.0
+        },
+        {
+          "confidence": 0.55,
+          "detection_type": "suspicious_traffic",
+          "dst_ip": "10.0.0.20",
+          "event_id": "<id-2>",
+          "evidence": [
+            "source contacted more than 6 distinct destinations in the window"
+          ],
+          "features": {
+            "ack_count": 0,
+            "avg_flow_duration": 0.0,
+            "avg_packet_size": 54.0,
+            "bytes_per_connection": 0.0,
+            "bytes_per_second": 1.8,
+            "connection_attempt_rate": 0.0333,
+            "connection_count": 1,
+            "fin_count": 0,
+            "flow_count": 1,
+            "flows_per_second": 0.0333,
+            "lateral_move_flag": 1,
+            "max_bytes_total": 0.0,
+            "max_flow_duration": 0.0,
+            "max_packet_size": 54.0,
+            "max_packets_total": 1.0,
+            "min_packet_size": 54.0,
+            "packets_per_second": 0.0333,
+            "rst_count": 0,
+            "rst_ratio": 0.0,
+            "std_bytes_total": 0.0,
+            "std_flow_duration": 0.0,
+            "std_packet_size": 0.0,
+            "syn_count": 1,
+            "syn_ratio": 1.0,
+            "total_bwd_packets": 0,
+            "total_bytes": 54,
+            "total_bytes_bwd": 0,
+            "total_bytes_fwd": 0,
+            "total_fwd_packets": 1,
+            "total_packets": 1,
+            "unique_destinations": 6,
+            "unique_dst_ips": 6,
+            "unique_dst_ports": 1,
+            "unique_ports": 1,
+            "unique_src_ports": 1
+          },
+          "metadata": {
+            "ml_score": {
+              "anomaly_risk": 2.71,
+              "anomaly_score": 1,
+              "anomaly_score_raw": 0.2163,
+              "event_id": "<id-2>",
+              "explanation": "unavailable: rule-only text does not attribute the model prediction"
+            }
+          },
+          "src_ip": "10.0.0.5",
+          "timestamp": 1735732860.0,
+          "window_end": 1735732860.0,
+          "window_start": 1735732830.0
+        },
+        {
+          "confidence": 0.55,
+          "detection_type": "suspicious_traffic",
+          "dst_ip": "10.0.0.21",
+          "event_id": "<id-3>",
+          "evidence": [
+            "source contacted more than 6 distinct destinations in the window"
+          ],
+          "features": {
+            "ack_count": 0,
+            "avg_flow_duration": 0.0,
+            "avg_packet_size": 54.0,
+            "bytes_per_connection": 0.0,
+            "bytes_per_second": 1.8,
+            "connection_attempt_rate": 0.0333,
+            "connection_count": 1,
+            "fin_count": 0,
+            "flow_count": 1,
+            "flows_per_second": 0.0333,
+            "lateral_move_flag": 1,
+            "max_bytes_total": 0.0,
+            "max_flow_duration": 0.0,
+            "max_packet_size": 54.0,
+            "max_packets_total": 1.0,
+            "min_packet_size": 54.0,
+            "packets_per_second": 0.0333,
+            "rst_count": 0,
+            "rst_ratio": 0.0,
+            "std_bytes_total": 0.0,
+            "std_flow_duration": 0.0,
+            "std_packet_size": 0.0,
+            "syn_count": 1,
+            "syn_ratio": 1.0,
+            "total_bwd_packets": 0,
+            "total_bytes": 54,
+            "total_bytes_bwd": 0,
+            "total_bytes_fwd": 0,
+            "total_fwd_packets": 1,
+            "total_packets": 1,
+            "unique_destinations": 6,
+            "unique_dst_ips": 6,
+            "unique_dst_ports": 1,
+            "unique_ports": 1,
+            "unique_src_ports": 1
+          },
+          "metadata": {
+            "ml_score": {
+              "anomaly_risk": 2.71,
+              "anomaly_score": 1,
+              "anomaly_score_raw": 0.2163,
+              "event_id": "<id-3>",
+              "explanation": "unavailable: rule-only text does not attribute the model prediction"
+            }
+          },
+          "src_ip": "10.0.0.5",
+          "timestamp": 1735732860.0,
+          "window_end": 1735732860.0,
+          "window_start": 1735732830.0
+        },
+        {
+          "confidence": 0.55,
+          "detection_type": "suspicious_traffic",
+          "dst_ip": "10.0.0.22",
+          "event_id": "<id-4>",
+          "evidence": [
+            "source contacted more than 6 distinct destinations in the window"
+          ],
+          "features": {
+            "ack_count": 0,
+            "avg_flow_duration": 0.0,
+            "avg_packet_size": 54.0,
+            "bytes_per_connection": 0.0,
+            "bytes_per_second": 1.8,
+            "connection_attempt_rate": 0.0333,
+            "connection_count": 1,
+            "fin_count": 0,
+            "flow_count": 1,
+            "flows_per_second": 0.0333,
+            "lateral_move_flag": 1,
+            "max_bytes_total": 0.0,
+            "max_flow_duration": 0.0,
+            "max_packet_size": 54.0,
+            "max_packets_total": 1.0,
+            "min_packet_size": 54.0,
+            "packets_per_second": 0.0333,
+            "rst_count": 0,
+            "rst_ratio": 0.0,
+            "std_bytes_total": 0.0,
+            "std_flow_duration": 0.0,
+            "std_packet_size": 0.0,
+            "syn_count": 1,
+            "syn_ratio": 1.0,
+            "total_bwd_packets": 0,
+            "total_bytes": 54,
+            "total_bytes_bwd": 0,
+            "total_bytes_fwd": 0,
+            "total_fwd_packets": 1,
+            "total_packets": 1,
+            "unique_destinations": 6,
+            "unique_dst_ips": 6,
+            "unique_dst_ports": 1,
+            "unique_ports": 1,
+            "unique_src_ports": 1
+          },
+          "metadata": {
+            "ml_score": {
+              "anomaly_risk": 2.71,
+              "anomaly_score": 1,
+              "anomaly_score_raw": 0.2163,
+              "event_id": "<id-4>",
+              "explanation": "unavailable: rule-only text does not attribute the model prediction"
+            }
+          },
+          "src_ip": "10.0.0.5",
+          "timestamp": 1735732860.0,
+          "window_end": 1735732860.0,
+          "window_start": 1735732830.0
+        },
+        {
+          "confidence": 0.55,
+          "detection_type": "suspicious_traffic",
+          "dst_ip": "10.0.0.23",
+          "event_id": "<id-5>",
+          "evidence": [
+            "source contacted more than 6 distinct destinations in the window"
+          ],
+          "features": {
+            "ack_count": 0,
+            "avg_flow_duration": 0.0,
+            "avg_packet_size": 54.0,
+            "bytes_per_connection": 0.0,
+            "bytes_per_second": 1.8,
+            "connection_attempt_rate": 0.0333,
+            "connection_count": 1,
+            "fin_count": 0,
+            "flow_count": 1,
+            "flows_per_second": 0.0333,
+            "lateral_move_flag": 1,
+            "max_bytes_total": 0.0,
+            "max_flow_duration": 0.0,
+            "max_packet_size": 54.0,
+            "max_packets_total": 1.0,
+            "min_packet_size": 54.0,
+            "packets_per_second": 0.0333,
+            "rst_count": 0,
+            "rst_ratio": 0.0,
+            "std_bytes_total": 0.0,
+            "std_flow_duration": 0.0,
+            "std_packet_size": 0.0,
+            "syn_count": 1,
+            "syn_ratio": 1.0,
+            "total_bwd_packets": 0,
+            "total_bytes": 54,
+            "total_bytes_bwd": 0,
+            "total_bytes_fwd": 0,
+            "total_fwd_packets": 1,
+            "total_packets": 1,
+            "unique_destinations": 6,
+            "unique_dst_ips": 6,
+            "unique_dst_ports": 1,
+            "unique_ports": 1,
+            "unique_src_ports": 1
+          },
+          "metadata": {
+            "ml_score": {
+              "anomaly_risk": 2.71,
+              "anomaly_score": 1,
+              "anomaly_score_raw": 0.2163,
+              "event_id": "<id-5>",
+              "explanation": "unavailable: rule-only text does not attribute the model prediction"
+            }
+          },
+          "src_ip": "10.0.0.5",
+          "timestamp": 1735732860.0,
+          "window_end": 1735732860.0,
+          "window_start": 1735732830.0
+        },
+        {
+          "confidence": 0.55,
+          "detection_type": "suspicious_traffic",
+          "dst_ip": "10.0.0.24",
+          "event_id": "<id-6>",
+          "evidence": [
+            "source contacted more than 6 distinct destinations in the window"
+          ],
+          "features": {
+            "ack_count": 0,
+            "avg_flow_duration": 0.0,
+            "avg_packet_size": 54.0,
+            "bytes_per_connection": 0.0,
+            "bytes_per_second": 1.8,
+            "connection_attempt_rate": 0.0333,
+            "connection_count": 1,
+            "fin_count": 0,
+            "flow_count": 1,
+            "flows_per_second": 0.0333,
+            "lateral_move_flag": 1,
+            "max_bytes_total": 0.0,
+            "max_flow_duration": 0.0,
+            "max_packet_size": 54.0,
+            "max_packets_total": 1.0,
+            "min_packet_size": 54.0,
+            "packets_per_second": 0.0333,
+            "rst_count": 0,
+            "rst_ratio": 0.0,
+            "std_bytes_total": 0.0,
+            "std_flow_duration": 0.0,
+            "std_packet_size": 0.0,
+            "syn_count": 1,
+            "syn_ratio": 1.0,
+            "total_bwd_packets": 0,
+            "total_bytes": 54,
+            "total_bytes_bwd": 0,
+            "total_bytes_fwd": 0,
+            "total_fwd_packets": 1,
+            "total_packets": 1,
+            "unique_destinations": 6,
+            "unique_dst_ips": 6,
+            "unique_dst_ports": 1,
+            "unique_ports": 1,
+            "unique_src_ports": 1
+          },
+          "metadata": {
+            "ml_score": {
+              "anomaly_risk": 2.71,
+              "anomaly_score": 1,
+              "anomaly_score_raw": 0.2163,
+              "event_id": "<id-6>",
+              "explanation": "unavailable: rule-only text does not attribute the model prediction"
+            }
+          },
+          "src_ip": "10.0.0.5",
+          "timestamp": 1735732860.0,
+          "window_end": 1735732860.0,
+          "window_start": 1735732830.0
+        },
+        {
+          "confidence": 0.55,
+          "detection_type": "suspicious_traffic",
+          "dst_ip": "10.0.0.25",
+          "event_id": "<id-7>",
+          "evidence": [
+            "source contacted more than 6 distinct destinations in the window"
+          ],
+          "features": {
+            "ack_count": 0,
+            "avg_flow_duration": 0.0,
+            "avg_packet_size": 54.0,
+            "bytes_per_connection": 0.0,
+            "bytes_per_second": 1.8,
+            "connection_attempt_rate": 0.0333,
+            "connection_count": 1,
+            "fin_count": 0,
+            "flow_count": 1,
+            "flows_per_second": 0.0333,
+            "lateral_move_flag": 1,
+            "max_bytes_total": 0.0,
+            "max_flow_duration": 0.0,
+            "max_packet_size": 54.0,
+            "max_packets_total": 1.0,
+            "min_packet_size": 54.0,
+            "packets_per_second": 0.0333,
+            "rst_count": 0,
+            "rst_ratio": 0.0,
+            "std_bytes_total": 0.0,
+            "std_flow_duration": 0.0,
+            "std_packet_size": 0.0,
+            "syn_count": 1,
+            "syn_ratio": 1.0,
+            "total_bwd_packets": 0,
+            "total_bytes": 54,
+            "total_bytes_bwd": 0,
+            "total_bytes_fwd": 0,
+            "total_fwd_packets": 1,
+            "total_packets": 1,
+            "unique_destinations": 6,
+            "unique_dst_ips": 6,
+            "unique_dst_ports": 1,
+            "unique_ports": 1,
+            "unique_src_ports": 1
+          },
+          "metadata": {
+            "ml_score": {
+              "anomaly_risk": 2.71,
+              "anomaly_score": 1,
+              "anomaly_score_raw": 0.2163,
+              "event_id": "<id-7>",
+              "explanation": "unavailable: rule-only text does not attribute the model prediction"
+            }
+          },
+          "src_ip": "10.0.0.5",
+          "timestamp": 1735732860.0,
+          "window_end": 1735732860.0,
+          "window_start": 1735732830.0
+        }
+      ],
+      "is_active": true,
+      "last_seen": 1735732860.0,
+      "source_hosts": [
+        "10.0.0.5"
+      ],
+      "stages": [
+        "Discovery",
+        "Lateral Movement"
+      ],
+      "start_time": 1735732830.0
+    }
+  ],
+  "detections": [
+    {
+      "confidence": 0.5429,
+      "detection_type": "potential_network_scan",
+      "dst_ip": "10.0.0.10",
+      "event_id": "<id-1>",
+      "evidence": [
+        "10 distinct destination ports with SYN ratio 1.00"
+      ],
+      "features": {
+        "ack_count": 0,
+        "avg_flow_duration": 0.0,
+        "avg_packet_size": 54.0,
+        "bytes_per_connection": 0.0,
+        "bytes_per_second": 18.0,
+        "connection_attempt_rate": 0.3333,
+        "connection_count": 10,
+        "fin_count": 0,
+        "flow_count": 10,
+        "flows_per_second": 0.3333,
+        "lateral_move_flag": 0,
+        "max_bytes_total": 0.0,
+        "max_flow_duration": 0.0,
+        "max_packet_size": 54.0,
+        "max_packets_total": 1.0,
+        "min_packet_size": 54.0,
+        "packets_per_second": 0.3333,
+        "rst_count": 0,
+        "rst_ratio": 0.0,
+        "std_bytes_total": 0.0,
+        "std_flow_duration": 0.0,
+        "std_packet_size": 0.0,
+        "syn_count": 10,
+        "syn_ratio": 1.0,
+        "total_bwd_packets": 0,
+        "total_bytes": 540,
+        "total_bytes_bwd": 0,
+        "total_bytes_fwd": 0,
+        "total_fwd_packets": 10,
+        "total_packets": 10,
+        "unique_destinations": 1,
+        "unique_dst_ips": 1,
+        "unique_dst_ports": 10,
+        "unique_ports": 10,
+        "unique_src_ports": 10
+      },
+      "metadata": {
+        "ml_score": {
+          "anomaly_risk": 21.69,
+          "anomaly_score": 1,
+          "anomaly_score_raw": 0.1215,
+          "event_id": "<id-1>",
+          "explanation": "unavailable: rule-only text does not attribute the model prediction"
+        }
+      },
+      "src_ip": "10.0.0.5",
+      "timestamp": 1735732830.0,
+      "window_end": 1735732830.0,
+      "window_start": 1735732800.0
+    },
+    {
+      "confidence": 0.55,
+      "detection_type": "suspicious_traffic",
+      "dst_ip": "10.0.0.20",
+      "event_id": "<id-2>",
+      "evidence": [
+        "source contacted more than 6 distinct destinations in the window"
+      ],
+      "features": {
+        "ack_count": 0,
+        "avg_flow_duration": 0.0,
+        "avg_packet_size": 54.0,
+        "bytes_per_connection": 0.0,
+        "bytes_per_second": 1.8,
+        "connection_attempt_rate": 0.0333,
+        "connection_count": 1,
+        "fin_count": 0,
+        "flow_count": 1,
+        "flows_per_second": 0.0333,
+        "lateral_move_flag": 1,
+        "max_bytes_total": 0.0,
+        "max_flow_duration": 0.0,
+        "max_packet_size": 54.0,
+        "max_packets_total": 1.0,
+        "min_packet_size": 54.0,
+        "packets_per_second": 0.0333,
+        "rst_count": 0,
+        "rst_ratio": 0.0,
+        "std_bytes_total": 0.0,
+        "std_flow_duration": 0.0,
+        "std_packet_size": 0.0,
+        "syn_count": 1,
+        "syn_ratio": 1.0,
+        "total_bwd_packets": 0,
+        "total_bytes": 54,
+        "total_bytes_bwd": 0,
+        "total_bytes_fwd": 0,
+        "total_fwd_packets": 1,
+        "total_packets": 1,
+        "unique_destinations": 6,
+        "unique_dst_ips": 6,
+        "unique_dst_ports": 1,
+        "unique_ports": 1,
+        "unique_src_ports": 1
+      },
+      "metadata": {
+        "ml_score": {
+          "anomaly_risk": 2.71,
+          "anomaly_score": 1,
+          "anomaly_score_raw": 0.2163,
+          "event_id": "<id-2>",
+          "explanation": "unavailable: rule-only text does not attribute the model prediction"
+        }
+      },
+      "src_ip": "10.0.0.5",
+      "timestamp": 1735732860.0,
+      "window_end": 1735732860.0,
+      "window_start": 1735732830.0
+    },
+    {
+      "confidence": 0.55,
+      "detection_type": "suspicious_traffic",
+      "dst_ip": "10.0.0.21",
+      "event_id": "<id-3>",
+      "evidence": [
+        "source contacted more than 6 distinct destinations in the window"
+      ],
+      "features": {
+        "ack_count": 0,
+        "avg_flow_duration": 0.0,
+        "avg_packet_size": 54.0,
+        "bytes_per_connection": 0.0,
+        "bytes_per_second": 1.8,
+        "connection_attempt_rate": 0.0333,
+        "connection_count": 1,
+        "fin_count": 0,
+        "flow_count": 1,
+        "flows_per_second": 0.0333,
+        "lateral_move_flag": 1,
+        "max_bytes_total": 0.0,
+        "max_flow_duration": 0.0,
+        "max_packet_size": 54.0,
+        "max_packets_total": 1.0,
+        "min_packet_size": 54.0,
+        "packets_per_second": 0.0333,
+        "rst_count": 0,
+        "rst_ratio": 0.0,
+        "std_bytes_total": 0.0,
+        "std_flow_duration": 0.0,
+        "std_packet_size": 0.0,
+        "syn_count": 1,
+        "syn_ratio": 1.0,
+        "total_bwd_packets": 0,
+        "total_bytes": 54,
+        "total_bytes_bwd": 0,
+        "total_bytes_fwd": 0,
+        "total_fwd_packets": 1,
+        "total_packets": 1,
+        "unique_destinations": 6,
+        "unique_dst_ips": 6,
+        "unique_dst_ports": 1,
+        "unique_ports": 1,
+        "unique_src_ports": 1
+      },
+      "metadata": {
+        "ml_score": {
+          "anomaly_risk": 2.71,
+          "anomaly_score": 1,
+          "anomaly_score_raw": 0.2163,
+          "event_id": "<id-3>",
+          "explanation": "unavailable: rule-only text does not attribute the model prediction"
+        }
+      },
+      "src_ip": "10.0.0.5",
+      "timestamp": 1735732860.0,
+      "window_end": 1735732860.0,
+      "window_start": 1735732830.0
+    },
+    {
+      "confidence": 0.55,
+      "detection_type": "suspicious_traffic",
+      "dst_ip": "10.0.0.22",
+      "event_id": "<id-4>",
+      "evidence": [
+        "source contacted more than 6 distinct destinations in the window"
+      ],
+      "features": {
+        "ack_count": 0,
+        "avg_flow_duration": 0.0,
+        "avg_packet_size": 54.0,
+        "bytes_per_connection": 0.0,
+        "bytes_per_second": 1.8,
+        "connection_attempt_rate": 0.0333,
+        "connection_count": 1,
+        "fin_count": 0,
+        "flow_count": 1,
+        "flows_per_second": 0.0333,
+        "lateral_move_flag": 1,
+        "max_bytes_total": 0.0,
+        "max_flow_duration": 0.0,
+        "max_packet_size": 54.0,
+        "max_packets_total": 1.0,
+        "min_packet_size": 54.0,
+        "packets_per_second": 0.0333,
+        "rst_count": 0,
+        "rst_ratio": 0.0,
+        "std_bytes_total": 0.0,
+        "std_flow_duration": 0.0,
+        "std_packet_size": 0.0,
+        "syn_count": 1,
+        "syn_ratio": 1.0,
+        "total_bwd_packets": 0,
+        "total_bytes": 54,
+        "total_bytes_bwd": 0,
+        "total_bytes_fwd": 0,
+        "total_fwd_packets": 1,
+        "total_packets": 1,
+        "unique_destinations": 6,
+        "unique_dst_ips": 6,
+        "unique_dst_ports": 1,
+        "unique_ports": 1,
+        "unique_src_ports": 1
+      },
+      "metadata": {
+        "ml_score": {
+          "anomaly_risk": 2.71,
+          "anomaly_score": 1,
+          "anomaly_score_raw": 0.2163,
+          "event_id": "<id-4>",
+          "explanation": "unavailable: rule-only text does not attribute the model prediction"
+        }
+      },
+      "src_ip": "10.0.0.5",
+      "timestamp": 1735732860.0,
+      "window_end": 1735732860.0,
+      "window_start": 1735732830.0
+    },
+    {
+      "confidence": 0.55,
+      "detection_type": "suspicious_traffic",
+      "dst_ip": "10.0.0.23",
+      "event_id": "<id-5>",
+      "evidence": [
+        "source contacted more than 6 distinct destinations in the window"
+      ],
+      "features": {
+        "ack_count": 0,
+        "avg_flow_duration": 0.0,
+        "avg_packet_size": 54.0,
+        "bytes_per_connection": 0.0,
+        "bytes_per_second": 1.8,
+        "connection_attempt_rate": 0.0333,
+        "connection_count": 1,
+        "fin_count": 0,
+        "flow_count": 1,
+        "flows_per_second": 0.0333,
+        "lateral_move_flag": 1,
+        "max_bytes_total": 0.0,
+        "max_flow_duration": 0.0,
+        "max_packet_size": 54.0,
+        "max_packets_total": 1.0,
+        "min_packet_size": 54.0,
+        "packets_per_second": 0.0333,
+        "rst_count": 0,
+        "rst_ratio": 0.0,
+        "std_bytes_total": 0.0,
+        "std_flow_duration": 0.0,
+        "std_packet_size": 0.0,
+        "syn_count": 1,
+        "syn_ratio": 1.0,
+        "total_bwd_packets": 0,
+        "total_bytes": 54,
+        "total_bytes_bwd": 0,
+        "total_bytes_fwd": 0,
+        "total_fwd_packets": 1,
+        "total_packets": 1,
+        "unique_destinations": 6,
+        "unique_dst_ips": 6,
+        "unique_dst_ports": 1,
+        "unique_ports": 1,
+        "unique_src_ports": 1
+      },
+      "metadata": {
+        "ml_score": {
+          "anomaly_risk": 2.71,
+          "anomaly_score": 1,
+          "anomaly_score_raw": 0.2163,
+          "event_id": "<id-5>",
+          "explanation": "unavailable: rule-only text does not attribute the model prediction"
+        }
+      },
+      "src_ip": "10.0.0.5",
+      "timestamp": 1735732860.0,
+      "window_end": 1735732860.0,
+      "window_start": 1735732830.0
+    },
+    {
+      "confidence": 0.55,
+      "detection_type": "suspicious_traffic",
+      "dst_ip": "10.0.0.24",
+      "event_id": "<id-6>",
+      "evidence": [
+        "source contacted more than 6 distinct destinations in the window"
+      ],
+      "features": {
+        "ack_count": 0,
+        "avg_flow_duration": 0.0,
+        "avg_packet_size": 54.0,
+        "bytes_per_connection": 0.0,
+        "bytes_per_second": 1.8,
+        "connection_attempt_rate": 0.0333,
+        "connection_count": 1,
+        "fin_count": 0,
+        "flow_count": 1,
+        "flows_per_second": 0.0333,
+        "lateral_move_flag": 1,
+        "max_bytes_total": 0.0,
+        "max_flow_duration": 0.0,
+        "max_packet_size": 54.0,
+        "max_packets_total": 1.0,
+        "min_packet_size": 54.0,
+        "packets_per_second": 0.0333,
+        "rst_count": 0,
+        "rst_ratio": 0.0,
+        "std_bytes_total": 0.0,
+        "std_flow_duration": 0.0,
+        "std_packet_size": 0.0,
+        "syn_count": 1,
+        "syn_ratio": 1.0,
+        "total_bwd_packets": 0,
+        "total_bytes": 54,
+        "total_bytes_bwd": 0,
+        "total_bytes_fwd": 0,
+        "total_fwd_packets": 1,
+        "total_packets": 1,
+        "unique_destinations": 6,
+        "unique_dst_ips": 6,
+        "unique_dst_ports": 1,
+        "unique_ports": 1,
+        "unique_src_ports": 1
+      },
+      "metadata": {
+        "ml_score": {
+          "anomaly_risk": 2.71,
+          "anomaly_score": 1,
+          "anomaly_score_raw": 0.2163,
+          "event_id": "<id-6>",
+          "explanation": "unavailable: rule-only text does not attribute the model prediction"
+        }
+      },
+      "src_ip": "10.0.0.5",
+      "timestamp": 1735732860.0,
+      "window_end": 1735732860.0,
+      "window_start": 1735732830.0
+    },
+    {
+      "confidence": 0.55,
+      "detection_type": "suspicious_traffic",
+      "dst_ip": "10.0.0.25",
+      "event_id": "<id-7>",
+      "evidence": [
+        "source contacted more than 6 distinct destinations in the window"
+      ],
+      "features": {
+        "ack_count": 0,
+        "avg_flow_duration": 0.0,
+        "avg_packet_size": 54.0,
+        "bytes_per_connection": 0.0,
+        "bytes_per_second": 1.8,
+        "connection_attempt_rate": 0.0333,
+        "connection_count": 1,
+        "fin_count": 0,
+        "flow_count": 1,
+        "flows_per_second": 0.0333,
+        "lateral_move_flag": 1,
+        "max_bytes_total": 0.0,
+        "max_flow_duration": 0.0,
+        "max_packet_size": 54.0,
+        "max_packets_total": 1.0,
+        "min_packet_size": 54.0,
+        "packets_per_second": 0.0333,
+        "rst_count": 0,
+        "rst_ratio": 0.0,
+        "std_bytes_total": 0.0,
+        "std_flow_duration": 0.0,
+        "std_packet_size": 0.0,
+        "syn_count": 1,
+        "syn_ratio": 1.0,
+        "total_bwd_packets": 0,
+        "total_bytes": 54,
+        "total_bytes_bwd": 0,
+        "total_bytes_fwd": 0,
+        "total_fwd_packets": 1,
+        "total_packets": 1,
+        "unique_destinations": 6,
+        "unique_dst_ips": 6,
+        "unique_dst_ports": 1,
+        "unique_ports": 1,
+        "unique_src_ports": 1
+      },
+      "metadata": {
+        "ml_score": {
+          "anomaly_risk": 2.71,
+          "anomaly_score": 1,
+          "anomaly_score_raw": 0.2163,
+          "event_id": "<id-7>",
+          "explanation": "unavailable: rule-only text does not attribute the model prediction"
+        }
+      },
+      "src_ip": "10.0.0.5",
+      "timestamp": 1735732860.0,
+      "window_end": 1735732860.0,
+      "window_start": 1735732830.0
+    }
+  ],
+  "explanation": {
+    "source": "mock",
+    "summary": "Highest-confidence finding: suspicious_traffic (confidence 0.55). source contacted more than 6 distinct destinations in the window",
+    "top_features": [
+      {
+        "direction": "at_or_below_normal",
+        "feature": "ack_count",
+        "impact": 0.0
+      },
+      {
+        "direction": "at_or_below_normal",
+        "feature": "avg_flow_duration",
+        "impact": 0.0
+      },
+      {
+        "direction": "above_normal",
+        "feature": "avg_packet_size",
+        "impact": 54.0
+      },
+      {
+        "direction": "at_or_below_normal",
+        "feature": "bytes_per_connection",
+        "impact": 0.0
+      },
+      {
+        "direction": "above_normal",
+        "feature": "bytes_per_second",
+        "impact": 1.8
+      },
+      {
+        "direction": "above_normal",
+        "feature": "connection_attempt_rate",
+        "impact": 0.0333
+      },
+      {
+        "direction": "above_normal",
+        "feature": "connection_count",
+        "impact": 1.0
+      },
+      {
+        "direction": "at_or_below_normal",
+        "feature": "fin_count",
+        "impact": 0.0
+      },
+      {
+        "direction": "above_normal",
+        "feature": "flow_count",
+        "impact": 1.0
+      },
+      {
+        "direction": "above_normal",
+        "feature": "flows_per_second",
+        "impact": 0.0333
+      },
+      {
+        "direction": "above_normal",
+        "feature": "lateral_move_flag",
+        "impact": 1.0
+      },
+      {
+        "direction": "at_or_below_normal",
+        "feature": "max_bytes_total",
+        "impact": 0.0
+      },
+      {
+        "direction": "at_or_below_normal",
+        "feature": "max_flow_duration",
+        "impact": 0.0
+      },
+      {
+        "direction": "above_normal",
+        "feature": "max_packet_size",
+        "impact": 54.0
+      },
+      {
+        "direction": "above_normal",
+        "feature": "max_packets_total",
+        "impact": 1.0
+      },
+      {
+        "direction": "above_normal",
+        "feature": "min_packet_size",
+        "impact": 54.0
+      },
+      {
+        "direction": "above_normal",
+        "feature": "packets_per_second",
+        "impact": 0.0333
+      },
+      {
+        "direction": "at_or_below_normal",
+        "feature": "rst_count",
+        "impact": 0.0
+      },
+      {
+        "direction": "at_or_below_normal",
+        "feature": "rst_ratio",
+        "impact": 0.0
+      },
+      {
+        "direction": "at_or_below_normal",
+        "feature": "std_bytes_total",
+        "impact": 0.0
+      },
+      {
+        "direction": "at_or_below_normal",
+        "feature": "std_flow_duration",
+        "impact": 0.0
+      },
+      {
+        "direction": "at_or_below_normal",
+        "feature": "std_packet_size",
+        "impact": 0.0
+      },
+      {
+        "direction": "above_normal",
+        "feature": "syn_count",
+        "impact": 1.0
+      },
+      {
+        "direction": "above_normal",
+        "feature": "syn_ratio",
+        "impact": 1.0
+      },
+      {
+        "direction": "at_or_below_normal",
+        "feature": "total_bwd_packets",
+        "impact": 0.0
+      },
+      {
+        "direction": "above_normal",
+        "feature": "total_bytes",
+        "impact": 54.0
+      },
+      {
+        "direction": "at_or_below_normal",
+        "feature": "total_bytes_bwd",
+        "impact": 0.0
+      },
+      {
+        "direction": "at_or_below_normal",
+        "feature": "total_bytes_fwd",
+        "impact": 0.0
+      },
+      {
+        "direction": "above_normal",
+        "feature": "total_fwd_packets",
+        "impact": 1.0
+      },
+      {
+        "direction": "above_normal",
+        "feature": "total_packets",
+        "impact": 1.0
+      },
+      {
+        "direction": "above_normal",
+        "feature": "unique_destinations",
+        "impact": 6.0
+      },
+      {
+        "direction": "above_normal",
+        "feature": "unique_dst_ips",
+        "impact": 6.0
+      },
+      {
+        "direction": "above_normal",
+        "feature": "unique_dst_ports",
+        "impact": 1.0
+      },
+      {
+        "direction": "above_normal",
+        "feature": "unique_ports",
+        "impact": 1.0
+      },
+      {
+        "direction": "above_normal",
+        "feature": "unique_src_ports",
+        "impact": 1.0
+      }
+    ]
+  },
+  "forecast": {
+    "keys": [
+      "confidence",
+      "predicted_stage",
+      "probable_next_stages",
+      "source",
+      "time_window_seconds"
+    ]
+  },
+  "input_source": "pcap:golden_scan.pcap",
+  "mitre": [
+    {
+      "confidence": 0.84,
+      "source": "mock",
+      "tactic": "Command and Control",
+      "technique_id": "T1071",
+      "technique_name": "Application Layer Protocol"
+    },
+    {
+      "confidence": 0.83,
+      "source": "mock",
+      "tactic": "Lateral Movement",
+      "technique_id": "T1021",
+      "technique_name": "Remote Services"
+    }
+  ],
+  "risk": {
+    "keys": [
+      "risk_score",
+      "severity",
+      "source"
+    ],
+    "source": "mock"
+  },
+  "warnings": []
+}

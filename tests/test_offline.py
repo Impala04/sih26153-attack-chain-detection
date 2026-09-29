@@ -9,7 +9,7 @@ from unittest import mock
 import pandas as pd
 
 from src.orchestrator import run_analysis
-
+from tests.test_run_analysis import _write_scan_pcap
 
 def _base_row(**overrides):
     row = {
@@ -55,6 +55,19 @@ class OfflineTests(unittest.TestCase):
 
         self.assertTrue(result.analysis_id)
         self.assertTrue(len(result.detections) > 0)
+    def test_run_analysis_pcap_makes_no_network_calls(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "scan.pcap"
+            _write_scan_pcap(path)
+
+            with mock.patch.object(socket, "socket", _blocked), \
+                 mock.patch.object(socket, "create_connection", _blocked), \
+                 mock.patch.object(socket, "getaddrinfo", _blocked):
+                result = run_analysis(str(path))
+
+        self.assertTrue(len(result.detections) > 0)
+        for det in result.detections:
+            self.assertNotIn("ml_score_error", det["metadata"])    
 
 
 if __name__ == "__main__":

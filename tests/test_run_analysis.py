@@ -7,6 +7,9 @@ from pathlib import Path
 import pandas as pd
 
 from src.orchestrator import run_analysis
+from scapy.all import Ether, IP, TCP, wrpcap
+
+from src.ingestion.pcap_reader import PcapReadError
 
 
 def _base_row(**overrides):
@@ -34,6 +37,21 @@ def _base_row(**overrides):
     return row
 
 
+
+def _write_scan_pcap(path):
+    base = 1_735_732_800.0
+    packets = []
+
+    def add(t, dst, dport, sport):
+        pkt = Ether() / IP(src="10.0.0.5", dst=dst) / TCP(sport=sport, dport=dport, flags="S")
+        pkt.time = t
+        packets.append(pkt)
+
+    for i, port in enumerate(range(20, 30)):
+        add(base + i, "10.0.0.10", port, 40000 + i)
+    for i, host in enumerate(range(20, 26), start=31):
+        add(base + i, f"10.0.0.{host}", 445, 41000 + i)
+    wrpcap(str(path), packets)
 class RunAnalysisTests(unittest.TestCase):
     def setUp(self):
         self.tmpdir = tempfile.TemporaryDirectory()
@@ -72,11 +90,42 @@ class RunAnalysisTests(unittest.TestCase):
             or any("risk" in w for w in result.warnings)
         )
 
-    def test_run_analysis_pcap_raises_not_implemented(self):
-        fake_pcap = self.tmp_path / "capture.pcap"
-        fake_pcap.write_bytes(b"\x00")  # content is irrelevant; never read
-        with self.assertRaises(NotImplementedError):
-            run_analysis(str(fake_pcap))
+    def test_run_analysis_pcap_fixture_with_no_detections(self):
+        fixture = Path(__file__).parent / "data" / "investigation_fixture.pcap"
+        result = run_analysis(str(fixture))
+        self.assertTrue(result.analysis_id)
+        self.assertEqual(result.input_source, "pcap:investigation_fixture.pcap")
+        self.assertEqual(result.detections, [])
+
+    def test_run_analysis_pcapng_fixture_with_no_detections(self):
+        fixture = Path(__file__).parent / "data" / "investigation_fixture.pcapng"
+        result = run_analysis(str(fixture))
+        self.assertTrue(result.analysis_id)
+        self.assertEqual(result.input_source, "pcap:investigation_fixture.pcapng")
+        self.assertEqual(result.detections, [])    
+
+    def test_run_analysis_pcap_scan_produces_detections(self):
+        path = self.tmp_path / "scan.pcap"
+        _write_scan_pcap(path)
+        result = run_analysis(str(path))
+        self.assertTrue(result.input_source.startswith("pcap:"))
+        self.assertTrue(len(result.detections) > 0)
+
+    def test_run_analysis_pcap_events_get_ml_score(self):
+        path = self.tmp_path / "scan.pcap"
+        _write_scan_pcap(path)
+        result = run_analysis(str(path))
+        self.assertTrue(len(result.detections) > 0)
+        for det in result.detections:
+            self.assertNotIn("ml_score_error", det["metadata"])
+            self.assertIn("ml_score", det["metadata"])   
+
+    def test_run_analysis_corrupt_pcap_raises_pcapreaderror(self):
+        bad = self.tmp_path / "capture.pcap"
+        bad.write_bytes(b"\x00")
+        with self.assertRaises(PcapReadError):
+            run_analysis(str(bad))
+
 
     def test_run_analysis_missing_file_raises_filenotfound(self):
         missing = self.tmp_path / "does_not_exist.csv"
