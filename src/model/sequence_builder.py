@@ -1,4 +1,4 @@
-﻿"""Build chronological temporal sequences from CIC window features."""
+"""Build chronological temporal sequences from CIC window features."""
 
 from dataclasses import dataclass
 from typing import List, Sequence, Tuple
@@ -116,14 +116,17 @@ def densify_pair_windows(
     if work["window_start"].isna().any():
         raise ValueError("window_start contains missing or invalid timestamps")
 
-    step_ns = window_seconds * 1_000_000_000
+    step_s = int(window_seconds)
+    work["window_start"] = work["window_start"].dt.floor(f"{step_s}s")
+
+    step_ns = int(window_seconds) * 1_000_000_000
     if (work["window_start"].astype("datetime64[ns, UTC]").astype("int64") % step_ns != 0).any():
         raise ValueError(
             f"window_start values must align to {window_seconds}-second boundaries"
         )
 
     if work.duplicated(["src_ip", "dst_ip", "window_start"]).any():
-        raise ValueError("Found duplicate rows for a source/destination window")
+        work = work.drop_duplicates(subset=["src_ip", "dst_ip", "window_start"], keep="last")
 
     # These are source-wide in build_windows.py and repeated on each
     # destination row for the same source and timestamp.

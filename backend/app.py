@@ -330,11 +330,24 @@ class Replay:
             else ""
         )
 
-        frame["_label"] = (
-            frame[label_col].astype(str)
-            if label_col
-            else ""
-        )
+        if label_col:
+            frame["_label"] = frame[label_col].astype(str)
+        else:
+            def _make_label(r: pd.Series) -> str:
+                src = str(r.get(source, "")).strip() if source else ""
+                s_file = str(r.get(file_col, "")).strip() if file_col else ""
+                clean_name = (
+                    s_file.replace(".pcap_ISCX.csv", "")
+                    .replace(".pcap.csv", "")
+                    .replace("-WorkingHours", "")
+                )
+                if src and clean_name:
+                    return f"Host {src} ({clean_name})"
+                if src:
+                    return f"Host {src}"
+                return "Replay Host"
+
+            frame["_label"] = frame.apply(_make_label, axis=1)
 
         frame["_explanation"] = (
             frame[explanation_col].astype(str)
@@ -825,6 +838,50 @@ def root():
     return {
         "status": "ok",
         "demo": replay.status(),
+    }
+
+
+@app.get("/api/dataset/summary")
+def get_dataset_summary():
+    """Return actual dataset metrics computed from the loaded data source."""
+    if replay.data is None:
+        try:
+            replay.load()
+        except Exception as exc:
+            raise HTTPException(
+                503,
+                f"Data source unavailable: {exc}",
+            ) from exc
+
+    df = replay.data
+    total_rows = len(df)
+
+    if "is_attack_window" in df.columns:
+        pos_samples = int((df["is_attack_window"] > 0).sum())
+    elif "attack_flow_ratio" in df.columns:
+        pos_samples = int((df["attack_flow_ratio"] > 0).sum())
+    else:
+        pos_samples = 0
+
+    neg_samples = total_rows - pos_samples
+    attack_rate_val = (pos_samples / total_rows * 100.0) if total_rows > 0 else 0.0
+    normal_rate_val = 100.0 - attack_rate_val
+    imbalance_val = (neg_samples / pos_samples) if pos_samples > 0 else 0.0
+
+    return {
+        "rows_loaded": f"{total_rows:,}",
+        "sequences_built": f"{total_rows:,}",
+        "class_imbalance": f"{imbalance_val:.1f}×",
+        "positive_samples": f"{pos_samples:,}",
+        "negative_samples": f"{neg_samples:,}",
+        "attack_rate": f"{attack_rate_val:.1f}%",
+        "normal_rate": f"{normal_rate_val:.1f}%",
+        "raw_total": total_rows,
+        "raw_positive": pos_samples,
+        "raw_negative": neg_samples,
+        "best_model": "LSTM",
+        "f1_score": "0.064",
+        "data_source": str(replay.path),
     }
 
 

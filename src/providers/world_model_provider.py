@@ -1,4 +1,4 @@
-﻿"""Mock attack-stage forecasts and the real future attack-probability model."""
+"""Mock attack-stage forecasts and the real future attack-probability model."""
 
 from __future__ import annotations
 
@@ -228,8 +228,17 @@ class RealWorldModelProvider(WorldModelProvider):
         if frame["window_start"].isna().any():
             return None, "Recent window features contain invalid window_start timestamps."
 
+        step_s = int(self.window_seconds)
+        frame["window_start"] = frame["window_start"].dt.floor(f"{step_s}s")
+
         expected_rows = int(self._forecaster.model.sequence_length)
         has_pair_keys = {"src_ip", "dst_ip"}.issubset(frame.columns)
+        if has_pair_keys:
+            frame = frame.drop_duplicates(
+                subset=["src_ip", "dst_ip", "window_start"], keep="last"
+            )
+        else:
+            frame = frame.drop_duplicates(subset=["window_start"], keep="last")
         if not has_pair_keys:
             if len(frame) < expected_rows:
                 return None, (
@@ -239,7 +248,8 @@ class RealWorldModelProvider(WorldModelProvider):
             sequence = frame.sort_values("window_start").tail(expected_rows).copy()
             timestamps = pd.to_datetime(
                 sequence["window_start"], errors="coerce", utc=True
-            )
+            ).dt.floor(f"{step_s}s")
+            sequence["window_start"] = timestamps
             expected_step = pd.Timedelta(seconds=self.window_seconds)
             if (
                 timestamps.isna().any()

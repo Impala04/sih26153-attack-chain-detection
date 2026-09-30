@@ -1,4 +1,4 @@
-﻿"""Load a trained World Model and produce timestamped K-step forecasts."""
+"""Load a trained World Model and produce timestamped K-step forecasts."""
 
 import json
 from dataclasses import dataclass
@@ -144,6 +144,9 @@ class WorldModelForecaster:
         if timestamps.isna().any():
             raise ValueError("window_start contains invalid timestamps")
 
+        step_s = int(self.window_seconds)
+        timestamps = timestamps.dt.floor(f"{step_s}s")
+
         # Force nanosecond resolution explicitly: pandas >= 3.0 defaults
         # pd.to_datetime(..., utc=True) to microsecond resolution rather
         # than the nanosecond resolution pandas 2.x used, which silently
@@ -156,7 +159,8 @@ class WorldModelForecaster:
             .astype("datetime64[ns]")
             .astype("int64")
         )
-        if not np.all(np.diff(timestamp_ns) == self.window_seconds * 1_000_000_000):
+        step_ns = int(self.window_seconds) * 1_000_000_000
+        if not np.all(np.diff(timestamp_ns) == step_ns):
             raise ValueError(
                 "Input windows must be in chronological order with no gaps; "
                 f"expected {self.window_seconds}-second intervals"
