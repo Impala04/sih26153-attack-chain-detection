@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 
-const API = 'http://localhost:8000'
+const API = 'http://127.0.0.1:8000'
 type Status = { scenario: string; scenario_label: string; running: boolean; interval_seconds: number; cursor: number; total: number; data_path: string; data_source?: string; error?: string | null }
 type Host = { id: string; label: string; risk: number; severity: string; window_start: string }
 

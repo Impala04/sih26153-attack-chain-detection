@@ -7,7 +7,7 @@ import { Activity, AlertTriangle, BarChart3, Bell, BrainCircuit, ChevronLeft, Ch
 import { LiveCapture } from '@/components/live-capture'
 
 type Host={id:string;label:string;risk:number;status:string;updated:string}; type Feature={name:string;impact:number}
-const API_BASE='http://localhost:8000'
+const API_BASE='http://127.0.0.1:8000'
 const nav=[['overview','Overview',LayoutDashboard],['monitoring','Live Monitoring',Activity],['dataset','Dataset Summary',Database],['benchmark','Benchmark Comparison',BarChart3],['threshold','Threshold Analysis',SlidersHorizontal],['training','Training Progress',BrainCircuit],['demo','Demo Mode',PlayCircle],['analyze','Analyze CSV / PCAP',Upload]] as const
 const f1=[.0557,.0301,.0388,.0329,.0684,.0510,.0374,.0474,.0552,.0717,.0608,.0455,.0464,.0676,.0577], loss=[1.36,1.2738,1.2016,1.1411,1.0916,1.1178,1.0808,1.0445,.9994,.979,.9635,.9496,.9191,.8953,.8686]
 const thresholds=[['Recall ≥ 90%',.217,.018,.904],['Recall ≥ 80%',.462,.030,.801],['Recall ≥ 70%',.594,.042,.705],['Best F1',.765,.068,.486],['Default',.500,.033,.781]]

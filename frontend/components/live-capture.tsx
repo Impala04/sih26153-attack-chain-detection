@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 type LiveSnapshot = { running?: boolean; packets_seen?: number; error?: string | null; state?: string; message?: string; target?: { input?: string; mode?: string }; result?: { detections?: unknown[]; attack_chains?: unknown[]; risk?: { risk_score?: number; severity?: string } } | null }
-const API_BASE = 'http://localhost:8000'
+const API_BASE = 'http://127.0.0.1:8000'
 
 export function LiveCapture() {
   const [snapshot, setSnapshot] = useState<LiveSnapshot | null>(null)

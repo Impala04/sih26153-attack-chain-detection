@@ -23,7 +23,7 @@ type ParseResult = {
 }
 
 const ACCEPTED = ['.pcap', '.pcapng', '.cap']
-const API_BASE = 'http://localhost:8000'
+const API_BASE = 'http://127.0.0.1:8000'
 const MAX_UPLOAD_BYTES = 100 * 1024 * 1024
 const formatPort = (ip: string, port: number | null) => port === null ? ip : `${ip}:${port}`
 

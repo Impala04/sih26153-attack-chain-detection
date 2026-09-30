@@ -18,7 +18,7 @@ if str(ROOT) not in sys.path:
 
 router = APIRouter()
 
-MAX_UPLOAD_BYTES = 100 * 1024 * 1024
+MAX_UPLOAD_BYTES = 200 * 1024 * 1024
 ANALYSIS_TIMEOUT_SECONDS = 45
 ANALYSIS_SUFFIXES = {".csv", ".pcap", ".pcapng"}
 
@@ -52,7 +52,7 @@ async def analyze_upload(file: UploadFile = File(...)):
                 while chunk := await file.read(1024 * 1024):
                     size += len(chunk)
                     if size > MAX_UPLOAD_BYTES:
-                        raise HTTPException(413, "File exceeds the 100 MB upload limit")
+                        raise HTTPException(413, "File exceeds the 200 MB upload limit")
                     out.write(chunk)
             if size == 0:
                 raise HTTPException(400, "The uploaded file is empty")

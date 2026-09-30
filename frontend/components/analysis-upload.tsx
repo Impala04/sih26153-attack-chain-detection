@@ -34,8 +34,8 @@ type AnalysisResult = {
 }
 
 const ACCEPTED = ['.csv', '.pcap', '.pcapng']
-const API_BASE = 'http://localhost:8000'
-const MAX_UPLOAD_BYTES = 100 * 1024 * 1024
+const API_BASE = 'http://127.0.0.1:8000'
+const MAX_UPLOAD_BYTES = 200 * 1024 * 1024
 const fmt = (value: unknown) =>
   typeof value === 'number' ? value.toFixed(3) : value == null ? '-' : String(value)
 
@@ -64,7 +64,7 @@ export function AnalysisUpload() {
     }
     if (next.size > MAX_UPLOAD_BYTES) {
       setFile(null)
-      setError('Files must be 100 MB or smaller.')
+      setError('Files must be 200 MB or smaller.')
       return
     }
     setFile(next)
@@ -132,7 +132,7 @@ export function AnalysisUpload() {
     </div>
 
     <section className="panel pcap-panel">
-      <div className="panel-head"><div><h2>Choose a file</h2><span>CSV, PCAP and PCAPNG files - 100 MB maximum</span></div></div>
+      <div className="panel-head"><div><h2>Choose a file</h2><span>CSV, PCAP and PCAPNG files - 200 MB maximum</span></div></div>
       <label className="pcap-drop" onDragOver={event => event.preventDefault()} onDrop={onDrop}>
         <input ref={inputRef} type="file" accept=".csv,.pcap,.pcapng" onChange={onChange}/>
         <span className="pcap-upload-icon"><FileUp size={21}/></span>
