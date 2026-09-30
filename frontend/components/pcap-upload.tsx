@@ -89,7 +89,7 @@ export function PcapUpload() {
 
   return <>
     <div className="page-title">
-      <div><span className="eyebrow">INVESTIGATION / PACKET CAPTURE</span><h1>PCAP upload</h1><p>Parse IPv4 TCP, UDP, and ICMP packet metadata from a capture file.</p></div>
+      <div><span className="eyebrow">INVESTIGATION / PACKET CAPTURE</span><h1>PCAP preview</h1><p>Inspect IPv4 TCP, UDP, and ICMP packet metadata before sending a capture to full analysis.</p></div>
       <div className="title-mark"><FileUp size={28}/></div>
     </div>
 
@@ -103,7 +103,7 @@ export function PcapUpload() {
       </label>
       {file && <div className="pcap-file"><div><b>{file.name}</b><small>{(file.size / 1024 / 1024).toFixed(2)} MB</small></div><button type="button" className="icon-btn" onClick={clearFile} aria-label="Remove selected file"><X size={17}/></button></div>}
       {error && <div className="pcap-error" role="alert"><AlertTriangle size={17}/><span>{error}</span></div>}
-      <div className="pcap-actions"><span>Captures are parsed for investigation and are not sent through the detection pipeline.</span><button type="button" className="pcap-submit" disabled={!file || busy} onClick={parseCapture}>{busy && <LoaderCircle size={15} className="pcap-spinner"/>}{busy ? 'Parsing…' : 'Parse capture'}</button></div>
+      <div className="pcap-actions"><span>This preview does not create detections. Use <b>Analyze CSV / PCAP</b> for the real detection, risk, forecast, and MITRE pipeline.</span><button type="button" className="pcap-submit" disabled={!file || busy} onClick={parseCapture}>{busy && <LoaderCircle size={15} className="pcap-spinner"/>}{busy ? 'Parsing…' : 'Parse preview'}</button></div>
     </section>
 
     {result && <>

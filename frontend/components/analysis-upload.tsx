@@ -23,6 +23,9 @@ type AnalysisResult = {
     confidence: number
     probable_next_stages: { stage: string; probability: number }[]
     source: string
+    forecast_status?: string
+    probability_note?: string
+    future_attack_probabilities?: { step: number; probability: number; threshold: number; predicted_attack: boolean }[]
   }
   mitre: Record<string, unknown>[]
   explanation: { summary: string; source: string }
@@ -160,6 +163,18 @@ export function AnalysisUpload() {
         <div className="panel-head"><div><h2>Attack chains</h2><span>Raw output from the correlator</span></div><em>{result.attack_chains.length} CHAINS</em></div>
         <pre className="mono" style={{ overflow: 'auto', maxHeight: 360 }}>{JSON.stringify(result.attack_chains, null, 2)}</pre>
       </section>}
+
+      <section className="panel">
+        <div className="panel-head"><div><h2>Forecast and model source</h2><span>Real World Model output when sufficient consecutive windows are available</span></div><em>{result.forecast?.source?.toUpperCase() || 'UNAVAILABLE'}</em></div>
+        <div className="pcap-result-summary"><div><span>FORECAST STATUS</span><b>{result.forecast?.forecast_status || 'reported'}</b></div><div><span>PREDICTION</span><b>{result.forecast?.predicted_stage || 'Unavailable'}</b></div><div><span>CONFIDENCE / PROBABILITY</span><b>{fmt(result.forecast?.confidence)}</b></div></div>
+        {result.forecast?.probability_note && <p className="muted">{result.forecast.probability_note}</p>}
+        {result.forecast?.future_attack_probabilities?.length ? <div className="table-wrap"><table className="pcap-table"><thead><tr><th>Future step</th><th>Attack probability</th><th>Threshold</th><th>Prediction</th></tr></thead><tbody>{result.forecast.future_attack_probabilities.map(item => <tr key={item.step}><td>{item.step}</td><td>{fmt(item.probability)}</td><td>{fmt(item.threshold)}</td><td>{item.predicted_attack ? 'Above threshold' : 'Below threshold'}</td></tr>)}</tbody></table></div> : <div className="empty">No forecast is shown when the uploaded data does not contain the consecutive history required by the trained World Model.</div>}
+      </section>
+
+      <section className="panel">
+        <div className="panel-head"><div><h2>MITRE ATT&amp;CK mapping</h2><span>Mappings generated from observed detections and correlation output</span></div><em>{result.mitre?.length || 0} MAPPINGS</em></div>
+        {!result.mitre?.length ? <div className="empty">No MITRE technique mapping was produced because no matching detection chain was observed.</div> : <pre className="mono" style={{ overflow: 'auto', maxHeight: 360 }}>{JSON.stringify(result.mitre, null, 2)}</pre>}
+      </section>
 
       {result.warnings.length > 0 && <div className="pcap-error" role="alert"><AlertTriangle size={17}/><span>{result.warnings.join(' | ')}</span></div>}
     </>}
